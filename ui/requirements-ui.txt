@@ -1,0 +1,5 @@
+# GimmeTools UI dependencies (separate from the backend).
+# The backend runs fine without these — the UI is an optional thin layer.
+# GimmeTools.bat installs customtkinter automatically on first launch.
+
+customtkinter>=5.2.0

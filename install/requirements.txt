@@ -1,0 +1,14 @@
+# MediaTools Python dependencies (backend).
+# Installed into tools/venv/ by install/setup.py — never the system Python.
+#
+# onnxruntime is intentionally NOT listed here. setup.py installs the correct
+# variant for your GPU after these:
+#   NVIDIA  -> onnxruntime-gpu
+#   AMD/Intel -> onnxruntime-directml
+#   none    -> onnxruntime (CPU)
+# (rembg pulls a CPU onnxruntime by default; setup.py swaps it when a GPU is found.)
+
+rembg>=2.0.59
+Pillow>=10.0.0
+tqdm>=4.66.0
+requests>=2.31.0
