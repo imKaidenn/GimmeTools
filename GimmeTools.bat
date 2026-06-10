@@ -63,12 +63,22 @@ if not exist "%VENV_PY%" (
 
 :launch
 REM ---- Make sure the UI library is present ----
-"%VENV_PY%" -c "import customtkinter" 2>nul
+"%VENV_PY%" -c "import webview" 2>nul
 if errorlevel 1 (
     echo   Installing UI library (one time)...
-    "%VENV_PY%" -m pip install --quiet customtkinter
+    "%VENV_PY%" -m pip install --quiet pywebview
 )
 
-REM ---- Open the app with no console window ----
-start "" "%VENV_PYW%" "ui\gimmetools.py"
+REM ---- v2 desktop app; classic UI as fallback if pywebview failed ----
+"%VENV_PY%" -c "import webview" 2>nul
+if errorlevel 1 (
+    echo   v2 UI unavailable - starting classic UI.
+    "%VENV_PY%" -c "import customtkinter" 2>nul
+    if errorlevel 1 "%VENV_PY%" -m pip install --quiet customtkinter
+    start "" "%VENV_PYW%" "ui\gimmetools.py"
+    goto :end
+)
+start "" "%VENV_PYW%" "app\main.py"
+
+:end
 endlocal
