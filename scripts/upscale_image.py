@@ -1,5 +1,5 @@
 """
-MediaTools — Image Upscaling
+GimmeTools — Image Upscaling
 
 Upscale images using Real-ESRGAN (portable ncnn-vulkan binary).
 GPU accelerated via Vulkan — works on NVIDIA, AMD, and Intel GPUs.
@@ -18,8 +18,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
-import shutil
 import subprocess
 import sys
 import time
@@ -28,40 +26,21 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from lib.config import Config, TOOLKIT_ROOT
+from lib.config import Config
 from lib.logger import setup_logger, log_header
+from lib.tool_discovery import find_realesrgan
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"}
 
-
-# ── Discover realesrgan binary ─────────────────────────────────────────────────
-
-def find_realesrgan(config_exe: Optional[Path] = None) -> Optional[Path]:
-    """
-    Locate realesrgan-ncnn-vulkan executable.
-
-    Search order:
-      1. Config path (paths.realesrgan_exe in config.json)
-      2. MEDIATOOLS_REALESRGAN_EXE env var
-      3. Bundled at tools/realesrgan/realesrgan-ncnn-vulkan.exe
-      4. PATH
-    """
-    if config_exe and config_exe.exists():
-        return config_exe
-
-    env = os.environ.get("MEDIATOOLS_REALESRGAN_EXE", "")
-    if env and Path(env).exists():
-        return Path(env)
-
-    bundled = TOOLKIT_ROOT / "tools" / "realesrgan" / "realesrgan-ncnn-vulkan.exe"
-    if bundled.exists():
-        return bundled
-
-    found = shutil.which("realesrgan-ncnn-vulkan")
-    if found:
-        return Path(found)
-
-    return None
+# Fixed-factor models reject any other -s value; only realesr-animevideov3
+# is multi-scale. Validated up front so users get one clear line instead of
+# a raw ncnn crash dump.
+MODEL_SCALES = {
+    "realesrgan-x4plus": {4},
+    "realesrgan-x4plus-anime": {4},
+    "realesrnet-x4plus": {4},
+    "realesr-animevideov3": {2, 3, 4},
+}
 
 
 # ── Upscale ────────────────────────────────────────────────────────────────────
@@ -83,11 +62,6 @@ def upscale_image(
     logger.info("GPU ID     : %d", gpu_id)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # realesrgan-ncnn-vulkan expects model files beside the exe or via -m path
-    models_dir = exe.parent / "models"
-    if not models_dir.is_dir():
-        models_dir = exe.parent
 
     cmd = [
         str(exe),
@@ -190,21 +164,25 @@ def main() -> int:
     suffix = cfg.get("upscale", "output_suffix", default="_4x")
     output_dir = Path(args.output_dir) if args.output_dir else cfg.output_dir
 
-    # Find the binary
-    config_exe_val = cfg.get("paths", "realesrgan_exe")
-    config_exe = Path(config_exe_val) if config_exe_val else None
-    exe = find_realesrgan(config_exe)
-
-    if not exe:
+    # Validate model/scale combination before any work
+    allowed = MODEL_SCALES.get(model)
+    if allowed and scale not in allowed:
         msg = (
-            "realesrgan-ncnn-vulkan not found.\n"
-            "Download from: https://github.com/xinntao/Real-ESRGAN/releases\n"
-            "Extract to: tools/realesrgan/\n"
-            "Or set MEDIATOOLS_REALESRGAN_EXE environment variable."
+            f"Model '{model}' only supports scale "
+            f"{'/'.join(str(s) for s in sorted(allowed))}x — you asked for {scale}x.\n"
+            "Use realesr-animevideov3 for 2x/3x, or scale 4 with this model."
         )
         logger.error(msg)
         print(f"Error: {msg}", file=sys.stderr)
         return 1
+
+    # Find the binary
+    result = find_realesrgan(cfg.realesrgan_exe)
+    if not result.found:
+        logger.error(result.detail)
+        print(f"Error: {result.detail}", file=sys.stderr)
+        return 1
+    exe = result.path
 
     logger.info("Binary     : %s", exe)
 
@@ -238,7 +216,7 @@ def main() -> int:
         logger.info("── Batch complete: %d/%d succeeded ──", total - failed, total)
         print(f"\nDone: {total - failed}/{total} succeeded.")
 
-    return 1 if failed == total else 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

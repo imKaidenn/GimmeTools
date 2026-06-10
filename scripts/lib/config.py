@@ -1,5 +1,5 @@
 """
-Configuration management for MediaTools.
+Configuration management for GimmeTools.
 
 Loads config/config.json relative to the toolkit root, applies defaults
 for any missing keys, and exposes typed properties for common settings.
@@ -21,11 +21,14 @@ def _resolve_toolkit_root() -> Path:
     env = os.environ.get("MEDIATOOLS_ROOT", "")
     if env:
         return Path(env).resolve()
-    # scripts/lib/config.py -> lib -> scripts -> MediaTools
+    # scripts/lib/config.py -> lib -> scripts -> GimmeTools
     return Path(__file__).resolve().parent.parent.parent
 
 
 TOOLKIT_ROOT: Path = _resolve_toolkit_root()
+
+# Toolkit release version — single source for log headers and the UI title.
+VERSION = "1.1"
 
 DEFAULTS: dict = {
     "version": "1.0",
@@ -56,7 +59,7 @@ DEFAULTS: dict = {
         "topaz_scale": 2,
         "topaz_output_suffix": "_topaz",
         "handbrake_preset_file": "config/hb-preset.json",
-        "handbrake_preset_name": "MediaTools H.265 1080p",
+        "handbrake_preset_name": "GimmeTools H.265 1080p",
         "keep_intermediate": False,
     },
     "logging": {
@@ -67,7 +70,7 @@ DEFAULTS: dict = {
 
 
 class Config:
-    """Typed access to MediaTools settings."""
+    """Typed access to GimmeTools settings."""
 
     def __init__(self, data: dict) -> None:
         self._data = data

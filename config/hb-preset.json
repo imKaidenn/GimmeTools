@@ -1,7 +1,7 @@
 {
   "PresetList": [
     {
-      "PresetName": "MediaTools H.265 1080p",
+      "PresetName": "GimmeTools H.265 1080p",
       "PresetDescription": "H.265 (HEVC), 1080p max, RF 22, AAC stereo 160kbps. Good quality/size balance for processed video.",
       "Type": 1,
       "Default": false,

@@ -1,5 +1,5 @@
 """
-MediaTools — Diagnostics
+GimmeTools — Diagnostics
 
 Checks all dependencies, GPU, models, config — produces a summary
 the user can share for troubleshooting.
@@ -19,13 +19,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from lib.config import Config, TOOLKIT_ROOT
 from lib.gpu_detect import detect as detect_gpu, ort_package_for
-from lib.tool_discovery import find_ffmpeg, find_ffprobe, find_handbrake, find_topaz
+from lib.tool_discovery import (
+    find_ffmpeg, find_ffprobe, find_handbrake, find_topaz, find_realesrgan,
+)
 
 
 def section(title: str) -> None:
-    print(f"\n{'─' * 50}")
+    # ASCII only — box-drawing chars crash cp1252 Windows consoles.
+    print(f"\n{'-' * 50}")
     print(f"  {title}")
-    print(f"{'─' * 50}")
+    print(f"{'-' * 50}")
 
 
 def ok(msg: str) -> None:
@@ -45,6 +48,14 @@ def info(msg: str) -> None:
 
 
 def main() -> int:
+    # Tool paths and filenames may contain characters the console encoding
+    # can't represent — degrade them instead of crashing the report.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except Exception:
+            pass
+
     issues = 0
 
     section("System")
@@ -84,7 +95,7 @@ def main() -> int:
         ok(f"onnxruntime {ort.__version__}")
         info(f"Providers: {', '.join(ort.get_available_providers())}")
     except ImportError:
-        fail("onnxruntime not installed — run install/setup.ps1")
+        fail("onnxruntime not installed — run GimmeTools.bat (or: py install\\setup.py)")
         issues += 1
 
     # ── rembg ──
@@ -93,7 +104,7 @@ def main() -> int:
         import rembg
         ok(f"rembg {rembg.__version__}")
     except ImportError:
-        fail("rembg not installed — run install/setup.ps1")
+        fail("rembg not installed — run GimmeTools.bat (or: py install\\setup.py)")
         issues += 1
     except AttributeError:
         ok("rembg installed (version not exposed)")
@@ -107,31 +118,23 @@ def main() -> int:
         issues += 1
 
     # ── Real-ESRGAN ──
+    # Uses the same discovery as upscale_image.py, so this report can't
+    # contradict what the upscaler actually does.
     section("Real-ESRGAN (Image Upscaling)")
-    esrgan_dir = TOOLKIT_ROOT / "tools" / "realesrgan"
-    esrgan_exe = esrgan_dir / "realesrgan-ncnn-vulkan.exe"
-    if esrgan_exe.exists():
-        ok(f"Binary found: {esrgan_exe}")
-        models_dir = esrgan_dir / "models"
-        if models_dir.is_dir():
-            model_files = list(models_dir.glob("*.bin")) + list(models_dir.glob("*.param"))
-            ok(f"Models dir: {len(model_files)} files in {models_dir}")
+    esrgan = find_realesrgan(cfg.realesrgan_exe if cfg else None)
+    if esrgan.found and esrgan.path:
+        ok(esrgan.detail)
+        exe_dir = esrgan.path.parent
+        models_dir = exe_dir / "models"
+        search_dir = models_dir if models_dir.is_dir() else exe_dir
+        model_files = list(search_dir.glob("*.bin")) + list(search_dir.glob("*.param"))
+        if model_files:
+            ok(f"Models: {len(model_files)} files in {search_dir}")
         else:
-            # models might be beside the exe
-            model_files = list(esrgan_dir.glob("*.bin")) + list(esrgan_dir.glob("*.param"))
-            if model_files:
-                ok(f"Models: {len(model_files)} files beside binary")
-            else:
-                warn("No model files found — upscaling will fail")
-                issues += 1
+            warn("No model files found — upscaling will fail")
+            issues += 1
     else:
-        env_exe = shutil.which("realesrgan-ncnn-vulkan")
-        if env_exe:
-            ok(f"Binary found in PATH: {env_exe}")
-        else:
-            warn("realesrgan-ncnn-vulkan not found")
-            info("Download from: https://github.com/xinntao/Real-ESRGAN/releases")
-            info(f"Extract to: {esrgan_dir}")
+        warn(esrgan.detail)
 
     # ── ffmpeg / ffprobe ──
     section("ffmpeg / ffprobe")
@@ -192,11 +195,14 @@ def main() -> int:
     # ── Summary ──
     section("Summary")
     if issues == 0:
-        print("\n  All checks passed. MediaTools is ready.\n")
+        print("\n  All checks passed. GimmeTools is ready.\n")
     else:
         print(f"\n  {issues} issue(s) found. See details above.\n")
 
-    return 0 if issues == 0 else 1
+    # Diagnose's job is reporting — the report itself carries the failures,
+    # so a completed run always exits 0 (the UI would otherwise label every
+    # diagnostic on an incomplete install as a crash).
+    return 0
 
 
 if __name__ == "__main__":
