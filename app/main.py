@@ -21,9 +21,12 @@ import time
 import traceback
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
-ROOT = APP_DIR.parent
-sys.path.insert(0, str(ROOT))
+if not getattr(sys, "frozen", False):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from app.paths import toolkit_root, ui_dir  # noqa: E402
+
+ROOT = toolkit_root()
 
 WINDOW_TITLE = "GimmeTools"
 MIN_SIZE = (860, 600)
@@ -53,7 +56,7 @@ def main() -> int:
         api = Api()
         window = webview.create_window(
             WINDOW_TITLE,
-            url=str(APP_DIR / "ui" / "index.html"),
+            url=str(ui_dir() / "index.html"),
             js_api=api,
             width=START_SIZE[0],
             height=START_SIZE[1],

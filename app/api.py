@@ -15,8 +15,9 @@ import webbrowser
 from pathlib import Path
 from typing import Optional
 
-APP_DIR = Path(__file__).resolve().parent
-ROOT = APP_DIR.parent
+from app.paths import toolkit_root, bootstrap_python  # noqa: E402
+
+ROOT = toolkit_root()
 SCRIPTS_DIR = ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
@@ -244,11 +245,16 @@ class Api:
     # ── Setup (first run without a venv) ───────────────────────────────────
 
     def run_setup(self) -> dict:
-        """Run install/setup.py as a queue job using the bootstrap python
+        """Run install/setup.py as a queue job using a bootstrap python
         (the venv interpreter doesn't exist until setup finishes)."""
+        py = bootstrap_python()
+        if py is None:
+            return {"ok": False, "error":
+                    "Python 3.10+ was not found. Install it from python.org "
+                    "(tick 'Add to PATH'), then run setup again."}
         job_id = self.queue.enqueue_cmd(
             "setup", "First-time Setup", "build environment",
-            [sys.executable, "-u", str(ROOT / "install" / "setup.py")],
+            [str(py), "-u", str(ROOT / "install" / "setup.py")],
         )
         return {"ok": True, "job_id": job_id}
 
