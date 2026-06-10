@@ -91,7 +91,9 @@ class Config:
             )
             return Config(_deep_merge(DEFAULTS, {}))
 
-        with config_path.open(encoding="utf-8") as fh:
+        # utf-8-sig: Notepad and friends may save config.json with a BOM;
+        # a silent fall-back-to-defaults here would be very confusing.
+        with config_path.open(encoding="utf-8-sig") as fh:
             user_data = json.load(fh)
 
         return Config(_deep_merge(DEFAULTS, user_data))

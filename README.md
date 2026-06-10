@@ -10,7 +10,15 @@ A clean cyberpunk desktop toolkit for the three things you keep needing — **re
 ![Platform](https://img.shields.io/badge/platform-Windows-22d3ee?style=for-the-badge)
 ![Version](https://img.shields.io/badge/version-2.0-8b5cf6?style=for-the-badge)
 
-<img src="screenshots/gimmetools.png" width="780" alt="GimmeTools">
+<img src="screenshots/gimmetools.png" width="780" alt="GimmeTools — creator dashboard">
+
+<table>
+  <tr>
+    <td><img src="screenshots/palette.png" alt="Command palette (Ctrl K)"></td>
+    <td><img src="screenshots/tool.png" alt="Tool workspace"></td>
+    <td><img src="screenshots/onboarding.png" alt="First-run onboarding"></td>
+  </tr>
+</table>
 
 </div>
 

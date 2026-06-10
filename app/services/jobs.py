@@ -284,7 +284,8 @@ class JobQueue:
 
     def _load_history(self) -> list[dict]:
         try:
-            data = json.loads(self._history_path.read_text(encoding="utf-8"))
+            # utf-8-sig: tolerate a BOM from hand-edits/external writers
+            data = json.loads(self._history_path.read_text(encoding="utf-8-sig"))
             return data if isinstance(data, list) else []
         except Exception:
             return []
