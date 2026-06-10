@@ -1,5 +1,5 @@
-"""
-MediaTools setup — pure Python, no PowerShell required.
+r"""
+GimmeTools setup — pure Python, no PowerShell required.
 
 Creates tools/venv/, installs dependencies (with the right ONNX Runtime for
 your GPU), creates directories, generates config.json, and installs the UI
@@ -99,7 +99,7 @@ def ort_package(vendor: str) -> str:
 
 def main() -> int:
     log("=" * 50)
-    log("  MediaTools Setup")
+    log("  GimmeTools Setup")
     log("=" * 50)
     log(f"  Root: {ROOT}")
 
@@ -131,7 +131,7 @@ def main() -> int:
             log("    FAIL: could not create the virtual environment.")
             log(f"    Tried: {sys.executable} -m venv {VENV_DIR}")
             log("    If this persists, your antivirus may be blocking venv —")
-            log("    try moving MediaTools to a simple path like C:\\MediaTools.")
+            log("    try moving GimmeTools to a simple path like C:\\GimmeTools.")
             return 1
         log(f"    OK: created {VENV_DIR}")
     else:
@@ -139,14 +139,14 @@ def main() -> int:
 
     run([vpy, "-m", "pip", "install", "--upgrade", "pip", "--quiet"])
 
-    # 3. GPU
+    # 4. GPU
     step("Detecting GPU...")
     vendor = detect_gpu_vendor()
     ort = ort_package(vendor)
     log(f"    GPU vendor: {vendor}")
     log(f"    ONNX Runtime package: {ort}")
 
-    # 4. base packages
+    # 5. base packages
     step("Installing base packages (rembg, Pillow, ...)")
     log("    This can take a few minutes the first time.")
     if run([vpy, "-m", "pip", "install", "-r", REQ_FILE]) != 0:
@@ -154,7 +154,7 @@ def main() -> int:
         return 1
     log("    OK: base packages installed")
 
-    # 5. correct ONNX Runtime
+    # 6. correct ONNX Runtime
     step("Configuring ONNX Runtime for your hardware...")
     if ort != "onnxruntime":
         # rembg pulled the CPU build; swap it for the GPU build.

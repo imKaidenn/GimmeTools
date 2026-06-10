@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Remove all MediaTools context menu entries from Windows Explorer.
+    Remove all GimmeTools context menu entries from Windows Explorer.
 
 .EXAMPLE
     .\install\unregister_context_menu.ps1
@@ -32,12 +32,15 @@ $MenuNames = @("RemoveBackground", "UpscaleImage(4x)", "ProcessVideo")
 
 $removed = 0
 
+# "MediaTools." entries were written by v1.0 — clean those up too.
 foreach ($ext in $AllExts) {
     foreach ($name in $MenuNames) {
-        $keyPath = "$Hive\Software\Classes\SystemFileAssociations\$ext\shell\MediaTools.$name"
-        if (Test-Path $keyPath) {
-            Remove-Item -Path $keyPath -Recurse -Force
-            $removed++
+        foreach ($prefix in @("GimmeTools", "MediaTools")) {
+            $keyPath = "$Hive\Software\Classes\SystemFileAssociations\$ext\shell\$prefix.$name"
+            if (Test-Path $keyPath) {
+                Remove-Item -Path $keyPath -Recurse -Force
+                $removed++
+            }
         }
     }
 }
@@ -45,5 +48,5 @@ foreach ($ext in $AllExts) {
 if ($removed -gt 0) {
     Write-Host "Removed $removed context menu entries." -ForegroundColor Green
 } else {
-    Write-Host "No MediaTools context menu entries found." -ForegroundColor Yellow
+    Write-Host "No GimmeTools context menu entries found." -ForegroundColor Yellow
 }

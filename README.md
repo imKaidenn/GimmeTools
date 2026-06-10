@@ -8,7 +8,7 @@ A clean cyberpunk desktop toolkit for the three things you keep needing — **re
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-7c3aed?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/platform-Windows-22d3ee?style=for-the-badge)
-![Version](https://img.shields.io/badge/version-1.0-8b5cf6?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.1-8b5cf6?style=for-the-badge)
 
 <img src="screenshots/gimmetools.png" width="780" alt="GimmeTools">
 
@@ -59,24 +59,32 @@ Models for `rembg` download on first use into `models/`.
 
 ## 🧪 Command-line usage
 
-```bash
-# remove a background → transparent PNG
-python scripts\remove_bg.py photo.jpg
+The backend's packages live in the local venv, so use its interpreter
+(`tools\venv\Scripts\python.exe`, created by first launch / setup):
 
-# batch a folder
-python scripts\remove_bg.py photos/ --batch
+```bat
+set PY=tools\venv\Scripts\python.exe
 
-# upscale to 4× with the anime model
-python scripts\upscale_image.py photo.jpg --scale 4 --model realesrgan-x4plus-anime
+:: remove a background → transparent PNG
+%PY% scripts\remove_bg.py photo.jpg
 
-# encode a video (HandBrake H.265 1080p preset)
-python scripts\process_video.py input.mp4
+:: batch a folder
+%PY% scripts\remove_bg.py photos\ --batch
 
-# skip the Topaz pass even if it's installed
-python scripts\process_video.py input.mp4 --skip-topaz
+:: upscale to 4× with the anime model
+%PY% scripts\upscale_image.py photo.jpg --scale 4 --model realesrgan-x4plus-anime
 
-# check what GimmeTools detected on this machine
-python scripts\diagnose.py
+:: 2×/3× upscales need the multi-scale model
+%PY% scripts\upscale_image.py photo.jpg --scale 2 --model realesr-animevideov3
+
+:: encode a video (HandBrake H.265 1080p preset)
+%PY% scripts\process_video.py input.mp4
+
+:: skip the Topaz pass even if it's installed
+%PY% scripts\process_video.py input.mp4 --skip-topaz
+
+:: check what GimmeTools detected on this machine
+%PY% scripts\diagnose.py
 ```
 
 ---
@@ -101,6 +109,7 @@ GimmeTools/
   models/                ← rembg models (downloaded on first use)
   tools/                 ← ffmpeg / HandBrake / Real-ESRGAN binaries
   outputs/               ← processed files land here by default
+  docs/                  ← audit report & release notes
 ```
 
 ---
