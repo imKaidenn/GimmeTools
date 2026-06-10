@@ -62,6 +62,7 @@ class Api:
         """Everything the UI needs to render its first frame."""
         return {
             "version": VERSION,
+            "user": os.environ.get("USERNAME") or os.environ.get("USER") or "creator",
             "root": str(ROOT),
             "venv_ok": "venv" in str(venv_python()),
             "tools": tools_registry.tools_as_dicts(),

@@ -12,7 +12,8 @@
   <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
   <aside id="sidebar">
     <div class="brand">
-      <span class="brand-gimme">Gimme</span><span class="brand-tools">Tools</span>
+      <span class="brand-mark">⚡</span>
+      <span><span class="brand-gimme">Gimme</span><span class="brand-tools">Tools</span></span>
     </div>
 
     <button id="palette-trigger" class="search-trigger" title="Search everything">
@@ -44,9 +45,12 @@
       <button id="setup-run" class="btn btn-primary">Run setup</button>
     </div>
 
-    <section id="tool-view"></section>
+    <div id="views">
+      <section id="view-dashboard" class="view"></section>
+      <section id="view-tool" class="view hidden"></section>
+    </div>
 
-    <!-- ── Activity panel ──────────────────────────────────────────── -->
+    <!-- ── Activity dock ───────────────────────────────────────────── -->
     <section id="activity">
       <div class="activity-bar">
         <div class="tabs">
@@ -89,7 +93,7 @@
   </div>
 </div>
 
-<!-- ── Generic dialog (confirm / error) ────────────────────────────── -->
+<!-- ── Generic dialog (confirm / input) ────────────────────────────── -->
 <div id="dialog" class="overlay hidden">
   <div class="modal modal-sm">
     <div class="modal-head"><h2 id="dialog-title"></h2></div>

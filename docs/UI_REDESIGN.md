@@ -1,13 +1,60 @@
-# GimmeTools v2 — UI Redesign
+# GimmeTools — UI Redesign (v3 creator platform)
 
-The v1 UI was a single-window customtkinter form (mode selector, file row, options,
-log box). Functional, but a utility launcher. v2 is a ground-up rebuild in web tech
-inside a native window, taking cues from Raycast (command palette, keyboard-first),
-Linear (typography, density, restraint), and Obsidian/Arc (sidebar structure) — on the
-existing GimmeTools brand palette (near-black `#0a0911`, purple `#7c3aed`, cyan
-`#22d3ee`).
+Two redesign generations live in this document. **v2** replaced the customtkinter
+form with a web UI inside a native window. **v3** (current) rebuilds that into a
+creator platform: Arc/Discord/CapCut/Linear/Spotify energy — cyberpunk but clean,
+glassmorphism, neon gradients, a Creator Dashboard, and motion everywhere it earns
+its keep.
 
-## Information architecture
+## v3 design language
+
+- **Typography**: Space Grotesk (display — headers, stats, brand) + Inter (UI), both
+  bundled locally as variable woff2 (~69 KB total, no network, no FOUT beyond swap).
+- **Surfaces**: deep-space base `#06050c` with a fixed ambient gradient mesh
+  (purple/cyan/blue radials at low opacity); glass panels —
+  `rgba(255,255,255,.03)` + `backdrop-filter: blur(16–28px)` + hairline strokes.
+- **Color**: neon blue `#4d7cfe`, electric cyan `#22d3ee`, purple gradient
+  `#7c3aed → #c084fc`; one brand gradient (purple→blue→cyan) for primary actions,
+  gradient text, and progress. Soft glows (`box-shadow` color bloom) on active
+  nav, primary buttons, icon tiles, and the busy status dot.
+- **Motion** (all GPU-composited transform/opacity, 60fps): staggered sidebar
+  entrance, animated view transitions (fade + 14px rise on a spring-ish
+  `cubic-bezier(.16,1,.3,1)`), card hover lift + sheen sweep, icon tilt on hover,
+  button press scale, chip pop-in, skeleton shimmer, toast slide. Entrance
+  animations detach after settling (timer + `animationend`) so the compositor goes
+  fully quiescent; `prefers-reduced-motion` collapses everything.
+- **Personality**: empty states with voice ("Queue's clear. Drop something in and
+  let the GPU eat."), time-aware greeting with the user's name in gradient text.
+
+## v3 information architecture
+
+```
+┌──────────────┬───────────────────────────────────────────────┐
+│ ⚡ GimmeTools │  HOME — Creator Dashboard                     │
+│ 🔍 Search ⌘K │   kicker · "Good evening, <name>" · sub       │
+│              │   [renders] [this week] [success %] [queued]  │
+│ Home         │   Quick actions: gradient cards per tool      │
+│ FAVORITES    │   Recent projects │ Activity timeline         │
+│ IMAGE        │   Saved presets (chips → 1-click apply)       │
+│ VIDEO        │                                               │
+│ SYSTEM       │  TOOL — Workspace (glass card)                │
+│ RECENT       │   ← back · gradient icon · ☆ · presets row    │
+│              │   glowing drop zone → chips · options · ▶ Run │
+│ ● status  ⚙ │  ───────────────────────────────────────────  │
+│              │  Activity dock (floating glass)               │
+└──────────────┴───────────────────────────────────────────────┘
+```
+
+The **Creator Dashboard** is the home view: greeting, live stats computed from job
+history, quick-action cards (the four tools, category-gradient icon tiles, sheen on
+hover), Recent projects (clickable rows with status badges), an Activity timeline
+(gradient rail + status dots), and saved-preset chips that deep-link into a tool
+with the preset applied. Skeleton shimmer placeholders render while the bridge
+boots.
+
+---
+
+## v2 foundation (still accurate below)
 
 ```
 ┌────────────┬──────────────────────────────────────────┐
