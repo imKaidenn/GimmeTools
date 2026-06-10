@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="dark">
+<title>GimmeTools</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div id="app">
+  <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+  <aside id="sidebar">
+    <div class="brand">
+      <span class="brand-gimme">Gimme</span><span class="brand-tools">Tools</span>
+    </div>
+
+    <button id="palette-trigger" class="search-trigger" title="Search everything">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <span>Search</span>
+      <kbd>Ctrl K</kbd>
+    </button>
+
+    <nav id="nav" class="nav"></nav>
+
+    <div class="sidebar-footer">
+      <button id="queue-pill" class="queue-pill" title="Queue activity">
+        <span class="dot" id="queue-dot"></span>
+        <span id="queue-summary">Idle</span>
+      </button>
+      <button id="settings-btn" class="icon-btn" title="Settings  (Ctrl ,)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main ────────────────────────────────────────────────────────── -->
+  <main id="main">
+    <div id="setup-banner" class="setup-banner hidden">
+      <div>
+        <strong>Environment not set up.</strong>
+        <span>GimmeTools needs a one-time setup to install its processing engine.</span>
+      </div>
+      <button id="setup-run" class="btn btn-primary">Run setup</button>
+    </div>
+
+    <section id="tool-view"></section>
+
+    <!-- ── Activity panel ──────────────────────────────────────────── -->
+    <section id="activity">
+      <div class="activity-bar">
+        <div class="tabs">
+          <button class="tab active" data-tab="queue">Queue <span id="tab-queue-count" class="count"></span></button>
+          <button class="tab" data-tab="history">History</button>
+          <button class="tab" data-tab="log">Log</button>
+        </div>
+        <div class="activity-actions">
+          <button id="pause-btn" class="btn btn-ghost btn-sm">Pause queue</button>
+          <button id="clear-history-btn" class="btn btn-ghost btn-sm hidden">Clear history</button>
+        </div>
+      </div>
+      <div id="panel-queue" class="panel"></div>
+      <div id="panel-history" class="panel hidden"></div>
+      <div id="panel-log" class="panel hidden"><pre id="log-pre" class="log-pre"></pre></div>
+    </section>
+  </main>
+</div>
+
+<!-- ── Command palette ─────────────────────────────────────────────── -->
+<div id="palette" class="overlay hidden">
+  <div class="palette">
+    <div class="palette-input-row">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input id="palette-input" type="text" placeholder="Search tools and actions…" autocomplete="off" spellcheck="false">
+      <kbd>esc</kbd>
+    </div>
+    <div id="palette-results" class="palette-results"></div>
+  </div>
+</div>
+
+<!-- ── Settings ────────────────────────────────────────────────────── -->
+<div id="settings-modal" class="overlay hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Settings</h2>
+      <button class="icon-btn" data-close>✕</button>
+    </div>
+    <div class="modal-body" id="settings-body"></div>
+  </div>
+</div>
+
+<!-- ── Generic dialog (confirm / error) ────────────────────────────── -->
+<div id="dialog" class="overlay hidden">
+  <div class="modal modal-sm">
+    <div class="modal-head"><h2 id="dialog-title"></h2></div>
+    <div class="modal-body"><p id="dialog-text"></p></div>
+    <div class="modal-foot">
+      <button id="dialog-cancel" class="btn btn-ghost">Cancel</button>
+      <button id="dialog-ok" class="btn btn-primary">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
