@@ -1,9 +1,10 @@
 "use strict";
 /* ════════════════════════════════════════════════════════════════════
-   GimmeTools v2 — application logic.
+   GimmeTools v3 — application logic.
+   Creator-platform UI: dashboard + tool workspaces with animated view
+   transitions, command palette, queue dock, presets, toasts.
    Vanilla JS, no build step. Talks to Python through window.pywebview.api;
-   falls back to a mock in a plain browser so the UI can be developed and
-   previewed without the shell.
+   falls back to a mock in a plain browser for development/preview.
    ════════════════════════════════════════════════════════════════════ */
 
 /* ── tiny DOM helpers ──────────────────────────────────────────────── */
@@ -36,17 +37,21 @@ function svgIcon(pathData, size = 16) {
 }
 
 const ICON = {
+  home: "M3 10.5L12 3l9 7.5M5 9.5V21h5v-6h4v6h5V9.5",
   star: "M12 2l2.9 6.2 6.6.8-4.9 4.6 1.3 6.5L12 16.9 6.1 20.1l1.3-6.5L2.5 9l6.6-.8L12 2z",
   drop: "M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2",
   play: "M6 4l14 8-14 8V4z",
   check: "M4 12.5l5 5L20 6.5",
   x: "M5 5l14 14M19 5L5 19",
   clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 4v5l3.5 2",
-  up: "M12 19V5m0 0l-6 6m6-6l6 6",
-  down: "M12 5v14m0 0l-6-6m6 6l6-6",
+  back: "M15 19l-7-7 7-7",
+  arrow: "M5 12h14m0 0l-6-6m6 6l-6 6",
   gear: "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
   bolt: "M13 2L4 14h6l-1 8 9-12h-6l1-8z",
+  sparkle: "M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3z",
 };
+
+const CAT_CLASS = { Image: "image", Video: "video", System: "system" };
 
 function fmtDuration(s) {
   if (s == null || isNaN(s)) return "";
@@ -88,40 +93,54 @@ const api = {
 };
 
 /* Browser-preview mock — enough state to render and click around. */
+const now = Date.now() / 1000;
 const MOCK = {
   boot: {
-    version: "2.0", root: "D:\\GimmeTools", venv_ok: true,
+    version: "2.0", user: "Kaiden", root: "D:\\GimmeTools", venv_ok: true,
     favorites: ["upscale"], recents: ["remove-bg", "upscale"],
     settings: { output_dir: null, keep_intermediate: false, check_updates: true },
-    presets: [{ id: "p1", tool_id: "upscale", name: "Anime 2x",
-                options: { model: "realesr-animevideov3", scale: "2" }, updated: 0 }],
+    presets: [
+      { id: "p1", tool_id: "upscale", name: "Anime 2x",
+        options: { model: "realesr-animevideov3", scale: "2" }, updated: 0 },
+      { id: "p2", tool_id: "remove-bg", name: "Thumbnails",
+        options: { model: "birefnet-general" }, updated: 0 },
+    ],
     tools: [
       { id: "remove-bg", name: "Remove Background", category: "Image",
-        description: "Cut the background out of any image — transparent PNG out.",
-        icon: "M9.5 2.7l1 2.3 2.3 1-2.3 1-1 2.3-1-2.3L6.2 6l2.3-1 1-2.3z", accepts: "image",
-        options: [
-          { key: "model", label: "Model", kind: "select", choices: ["birefnet-general", "u2net"], default: "birefnet-general", help: "" },
-          { key: "gpu", label: "GPU", kind: "select", choices: ["auto", "cpu"], default: "auto", help: "" }],
-        keywords: [], constraints: {} },
-      { id: "upscale", name: "Upscale Image", category: "Image",
-        description: "Enlarge images 2-4x with Real-ESRGAN.", icon: "M3 9V5a2 2 0 0 1 2-2h4",
+        description: "Cut the background out of any image — transparent PNG out. Fully local.",
+        icon: "M9.5 2.7l1 2.3 2.3 1-2.3 1-1 2.3-1-2.3L6.2 6l2.3-1 1-2.3zM19 3l.7 1.6L21.3 5.3l-1.6.7L19 7.6 18.3 6l-1.6-.7 1.6-.7L19 3zM20.5 12.5L4.9 21.1a1 1 0 0 1-1.4-1.4l8.6-15.6a1 1 0 0 1 1.7 0l6.7 6.7a1 1 0 0 1 0 1.7z",
         accepts: "image",
         options: [
-          { key: "model", label: "Model", kind: "select", choices: ["realesrgan-x4plus", "realesr-animevideov3"], default: "realesrgan-x4plus", help: "" },
-          { key: "scale", label: "Scale", kind: "select", choices: ["2", "3", "4"], default: "4", help: "" }],
+          { key: "model", label: "Model", kind: "select", choices: ["birefnet-general", "birefnet-portrait", "u2net"], default: "birefnet-general", help: "birefnet-general is the best all-rounder." },
+          { key: "gpu", label: "GPU", kind: "select", choices: ["auto", "cpu"], default: "auto", help: "auto picks the best provider." }],
+        keywords: [], constraints: {} },
+      { id: "upscale", name: "Upscale Image", category: "Image",
+        description: "Enlarge images 2-4x with Real-ESRGAN. GPU-accelerated.",
+        icon: "M3 9V5a2 2 0 0 1 2-2h4M21 9V5a2 2 0 0 0-2-2h-4M3 15v4a2 2 0 0 0 2 2h4M21 15v4a2 2 0 0 1-2 2h-4",
+        accepts: "image",
+        options: [
+          { key: "model", label: "Model", kind: "select", choices: ["realesrgan-x4plus", "realesr-animevideov3"], default: "realesrgan-x4plus", help: "x4plus for photos." },
+          { key: "scale", label: "Scale", kind: "select", choices: ["2", "3", "4"], default: "4", help: "2x/3x need animevideov3." }],
         keywords: [], constraints: { scale: { "realesrgan-x4plus": ["4"], "realesr-animevideov3": ["2", "3", "4"] } } },
       { id: "process-video", name: "Process Video", category: "Video",
-        description: "Topaz enhance then H.265 encode.", icon: "M4 3h16", accepts: "video",
-        options: [{ key: "skip_topaz", label: "Skip Topaz", kind: "toggle", default: false, help: "" }],
+        description: "Optional Topaz AI enhance, then a clean H.265 encode.",
+        icon: "M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM3 8h18M3 16h18M8 3v18M16 3v18",
+        accepts: "video",
+        options: [{ key: "skip_topaz", label: "Skip Topaz (encode only)", kind: "toggle", default: false, help: "" }],
         keywords: [], constraints: {} },
       { id: "diagnose", name: "Diagnostics", category: "System",
-        description: "Check every dependency, GPU, model, and folder.", icon: "M3 12h4l2-7 4 14 2-7h6",
+        description: "Check every dependency, GPU, model, and folder.",
+        icon: "M3 12h4l2-7 4 14 2-7h6",
         accepts: "none", options: [], keywords: [], constraints: {} },
     ],
     state: { paused: false, current: null, queue: [], history: [
-      { id: "h1", tool_id: "upscale", tool_name: "Upscale Image", label: "photo.jpg",
-        status: "done", created: Date.now() / 1000 - 700, started: Date.now() / 1000 - 690,
-        ended: Date.now() / 1000 - 660, exit_code: 0, progress_cur: 0, progress_total: 0 }] },
+      { id: "h1", tool_id: "upscale", tool_name: "Upscale Image", label: "thumbnail_v2.png",
+        status: "done", created: now - 540, started: now - 530, ended: now - 480, exit_code: 0, progress_cur: 0, progress_total: 0 },
+      { id: "h2", tool_id: "remove-bg", tool_name: "Remove Background", label: "stream-overlay (12 files)",
+        status: "done", created: now - 4200, started: now - 4150, ended: now - 3900, exit_code: 0, progress_cur: 12, progress_total: 12 },
+      { id: "h3", tool_id: "process-video", tool_name: "Process Video", label: "intro_4k.mp4",
+        status: "failed", created: now - 90000, started: now - 89900, ended: now - 89000, exit_code: 1, progress_cur: 0, progress_total: 0 },
+    ] },
   },
 };
 
@@ -151,9 +170,10 @@ function mockApi(name, ...args) {
 const S = {
   boot: null,
   tools: [],
+  view: "dashboard",        // "dashboard" | "tool"
   currentToolId: null,
-  inputs: [],               // selected file/folder paths
-  options: {},              // current option values for current tool
+  inputs: [],
+  options: {},
   presets: [],
   favorites: [],
   recents: [],
@@ -161,12 +181,28 @@ const S = {
   activeTab: "queue",
   logJobId: null,
   pollTimer: null,
-  seenJobs: new Set(),      // history ids already toasted
+  seenJobs: new Set(),
 };
 
 /* ── Boot ──────────────────────────────────────────────────────────── */
 
+function renderSkeleton() {
+  const v = $("#view-dashboard");
+  v.replaceChildren(
+    el("div", { class: "dash-hero" }, [
+      el("div", { class: "skeleton", style: "width:120px;height:14px;margin-bottom:10px" }),
+      el("div", { class: "skeleton", style: "width:340px;height:34px;margin-bottom:8px" }),
+      el("div", { class: "skeleton", style: "width:220px;height:14px" }),
+    ]),
+    el("div", { class: "stat-row", style: "margin-bottom:24px" },
+      [0, 1, 2].map(() => el("div", { class: "skeleton", style: "height:76px" }))),
+    el("div", { class: "qa-grid" },
+      [0, 1, 2, 3].map(() => el("div", { class: "skeleton", style: "height:150px;border-radius:20px" }))),
+  );
+}
+
 async function boot() {
+  renderSkeleton();
   S.boot = await api.call("boot");
   S.tools = S.boot.tools;
   S.favorites = S.boot.favorites;
@@ -174,13 +210,49 @@ async function boot() {
   S.presets = S.boot.presets;
   S.queueState = S.boot.state;
   for (const h of S.queueState.history) S.seenJobs.add(h.id);
-  S.currentToolId = S.recents[0] || S.tools[0].id;
 
   $("#setup-banner").classList.toggle("hidden", S.boot.venv_ok);
   renderNav();
-  await selectTool(S.currentToolId);
+  showView("dashboard");
   renderActivity();
   schedulePoll();
+}
+
+/* ── View router ───────────────────────────────────────────────────── */
+
+function showView(view, toolId = null) {
+  S.view = view;
+  if (toolId) S.currentToolId = toolId;
+
+  const dash = $("#view-dashboard");
+  const tool = $("#view-tool");
+  const target = view === "dashboard" ? dash : tool;
+  const other = view === "dashboard" ? tool : dash;
+
+  other.classList.add("hidden");
+  target.classList.remove("hidden", "view-enter");
+
+  if (view === "dashboard") renderDashboard();
+  else renderToolView();
+
+  void target.offsetWidth;            // restart the enter animation
+  target.classList.add("view-enter");
+  // Settle by timer, not animationend: throttled/offscreen renderers freeze
+  // the animation clock, and finished-looking animations must not linger.
+  setTimeout(() => target.classList.remove("view-enter"), 450);
+  renderNav();
+}
+
+async function openTool(toolId) {
+  S.currentToolId = toolId;
+  S.inputs = [];
+  const tool = currentTool();
+  const last = await api.call("get_last_options", toolId);
+  S.options = {};
+  for (const opt of tool.options) {
+    S.options[opt.key] = last[opt.key] !== undefined ? last[opt.key] : opt.default;
+  }
+  showView("tool", toolId);
 }
 
 /* ── Sidebar nav ───────────────────────────────────────────────────── */
@@ -188,6 +260,16 @@ async function boot() {
 function renderNav() {
   const nav = $("#nav");
   nav.replaceChildren();
+  let navIndex = 0;
+  const stagger = (node) => {
+    node.style.animationDelay = (navIndex++ * 22) + "ms";
+    return node;
+  };
+
+  nav.appendChild(stagger(el("button", {
+    class: "nav-item" + (S.view === "dashboard" ? " active" : ""),
+    onclick: () => showView("dashboard"),
+  }, [svgIcon(ICON.home), el("span", { text: "Home" })])));
 
   const mkItem = (tool) => {
     const star = svgIcon(ICON.star, 13);
@@ -197,13 +279,12 @@ function renderNav() {
       e.stopPropagation();
       S.favorites = await api.call("toggle_favorite", tool.id);
       renderNav();
-      renderToolHead();
     });
-    const item = el("button", {
-      class: "nav-item" + (tool.id === S.currentToolId ? " active" : ""),
-      onclick: () => selectTool(tool.id),
-    }, [svgIcon(tool.icon), el("span", { text: tool.name }), star]);
-    return item;
+    return stagger(el("button", {
+      class: "nav-item" +
+        (S.view === "tool" && tool.id === S.currentToolId ? " active" : ""),
+      onclick: () => openTool(tool.id),
+    }, [svgIcon(tool.icon), el("span", { text: tool.name }), star]));
   };
 
   const favs = S.tools.filter((t) => S.favorites.includes(t.id));
@@ -227,78 +308,208 @@ function renderNav() {
     nav.appendChild(el("div", { class: "nav-section", text: "Recent" }));
     recents.forEach((t) => nav.appendChild(mkItem(t)));
   }
+
+  // settle stagger animations (see showView for why a timer)
+  setTimeout(() => {
+    nav.querySelectorAll(".nav-item").forEach((n) => { n.style.animation = "none"; });
+  }, 700);
 }
 
-/* ── Tool view ─────────────────────────────────────────────────────── */
+/* ── Dashboard ─────────────────────────────────────────────────────── */
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 5) return "Late night session";
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+function dashStats() {
+  const hist = S.queueState.history;
+  const done = hist.filter((j) => j.status === "done").length;
+  const week = hist.filter((j) => j.ended && (Date.now() / 1000 - j.ended) < 7 * 86400).length;
+  const finished = hist.filter((j) => j.status === "done" || j.status === "failed").length;
+  const rate = finished ? Math.round(100 * done / Math.max(finished, 1)) : null;
+  return { done, week, rate };
+}
+
+function renderDashboard() {
+  const v = $("#view-dashboard");
+  v.replaceChildren();
+  const name = (S.boot.user || "creator");
+
+  /* hero */
+  v.appendChild(el("div", { class: "dash-hero" }, [
+    el("div", { class: "dash-kicker", text: "Creator dashboard" }),
+    el("div", { class: "dash-greeting" }, [
+      greeting() + ", ",
+      el("span", { class: "grad-text", text: name }),
+    ]),
+    el("div", { class: "dash-sub", text: "Drop a file into any tool — everything runs on your GPU, nothing leaves this machine." }),
+  ]));
+
+  /* stats */
+  const st = dashStats();
+  v.appendChild(el("div", { class: "stat-row" }, [
+    statCard(st.done, "renders completed"),
+    statCard(st.week, "this week"),
+    statCard(st.rate === null ? "—" : st.rate + "%", "success rate"),
+    statCard(S.queueState.queue.length + (S.queueState.current ? 1 : 0), "in queue"),
+  ]));
+
+  /* quick actions */
+  v.appendChild(el("div", { class: "dash-section-title" }, [
+    svgIcon(ICON.bolt, 14), "Quick actions",
+    el("span", { class: "hint", text: "Ctrl 1–4" }),
+  ]));
+  v.appendChild(el("div", { class: "qa-grid" },
+    S.tools.map((t) => el("button", { class: "qa-card", onclick: () => openTool(t.id) }, [
+      el("div", { class: "qa-icon " + (CAT_CLASS[t.category] || "system") }, [svgIcon(t.icon, 20)]),
+      el("div", { class: "qa-name", text: t.name }),
+      el("div", { class: "qa-desc", text: t.description }),
+      el("div", { class: "qa-go" }, ["Open", svgIcon(ICON.arrow, 12)]),
+    ]))));
+
+  /* two columns: recent projects + activity timeline */
+  const recentCard = el("div", { class: "dash-card" });
+  const hist = S.queueState.history;
+  if (!hist.length) {
+    recentCard.appendChild(el("div", { class: "empty-panel", style: "padding:34px 20px" }, [
+      el("div", { class: "big", text: "🎬" }),
+      el("div", {}, [el("b", { text: "Fresh canvas." }), " Your first render is one drop away."]),
+    ]));
+  } else {
+    hist.slice(0, 5).forEach((j) => {
+      const tool = S.tools.find((t) => t.id === j.tool_id);
+      recentCard.appendChild(el("div", { class: "proj-row", onclick: () => showLog(j.id) }, [
+        el("div", { class: "proj-thumb" }, [svgIcon(tool ? tool.icon : ICON.sparkle, 16)]),
+        el("div", { style: "min-width:0" }, [
+          el("div", { class: "proj-name", text: j.label }),
+          el("div", { class: "proj-meta", text: j.tool_name + " · " + fmtAgo(j.ended) }),
+        ]),
+        el("span", { class: "proj-status" }, [
+          el("span", { class: "badge " + j.status, text: j.status }),
+        ]),
+      ]));
+    });
+  }
+
+  const tlCard = el("div", { class: "dash-card" });
+  if (!hist.length) {
+    tlCard.appendChild(el("div", { class: "empty-panel", style: "padding:34px 20px" }, [
+      el("div", { class: "big", text: "✨" }),
+      el("div", {}, [el("b", { text: "No activity yet." }), " It'll all show up here."]),
+    ]));
+  } else {
+    const tl = el("div", { class: "timeline" });
+    hist.slice(0, 6).forEach((j) => {
+      const verb = { done: "finished", failed: "failed on", cancelled: "cancelled" }[j.status] || "ran";
+      tl.appendChild(el("div", { class: "tl-item" }, [
+        el("div", { class: "tl-dot " + j.status }),
+        el("div", {}, [
+          el("div", { class: "tl-text" }, [
+            el("b", { text: j.tool_name }), " " + verb + " ",
+            el("b", { text: j.label }),
+          ]),
+          el("div", { class: "tl-when", text: fmtAgo(j.ended) + (j.started && j.ended ? " · " + fmtDuration(j.ended - j.started) : "") }),
+        ]),
+      ]));
+    });
+    tlCard.appendChild(tl);
+  }
+
+  v.appendChild(el("div", { class: "dash-cols" }, [
+    el("div", {}, [
+      el("div", { class: "dash-section-title" }, [svgIcon(ICON.clock, 14), "Recent projects"]),
+      recentCard,
+    ]),
+    el("div", {}, [
+      el("div", { class: "dash-section-title" }, [svgIcon(ICON.sparkle, 14), "Activity"]),
+      tlCard,
+    ]),
+  ]));
+
+  /* saved presets */
+  if (S.presets.length) {
+    v.appendChild(el("div", { class: "dash-section-title" }, [svgIcon(ICON.star, 14), "Saved presets"]));
+    v.appendChild(el("div", { class: "chip-row" },
+      S.presets.slice(0, 8).map((p) => {
+        const tool = S.tools.find((t) => t.id === p.tool_id);
+        return el("button", { class: "preset-chip", onclick: async () => {
+          await openTool(p.tool_id);
+          S.options = Object.assign({}, S.options, p.options);
+          renderToolView();
+          toast("Preset “" + p.name + "” applied", "ok");
+        } }, [
+          el("span", { text: p.name }),
+          el("span", { class: "pc-tool", text: tool ? tool.name : p.tool_id }),
+        ]);
+      })));
+  }
+}
+
+function statCard(value, label) {
+  return el("div", { class: "stat-card" }, [
+    el("div", { class: "stat-value" + (typeof value === "number" && value > 0 ? " grad-text" : ""), text: String(value) }),
+    el("div", { class: "stat-label", text: label }),
+  ]);
+}
+
+/* ── Tool workspace ────────────────────────────────────────────────── */
 
 function currentTool() {
   return S.tools.find((t) => t.id === S.currentToolId);
 }
 
-async function selectTool(toolId) {
-  S.currentToolId = toolId;
-  S.inputs = [];
-  const tool = currentTool();
-  const last = await api.call("get_last_options", toolId);
-  S.options = {};
-  for (const opt of tool.options) {
-    S.options[opt.key] = last[opt.key] !== undefined ? last[opt.key] : opt.default;
-  }
-  renderNav();
-  renderToolView();
-}
-
-function renderToolHead() {
-  const tool = currentTool();
-  const fav = $("#fav-btn");
-  if (fav) fav.classList.toggle("faved", S.favorites.includes(tool.id));
-}
-
 function renderToolView() {
   const tool = currentTool();
-  const view = $("#tool-view");
+  if (!tool) return;
+  const view = $("#view-tool");
   view.replaceChildren();
 
   /* header */
   const favBtn = el("button", {
     class: "fav-btn" + (S.favorites.includes(tool.id) ? " faved" : ""),
-    id: "fav-btn", title: "Favorite",
-    onclick: async () => {
+    title: "Favorite",
+    onclick: async (e) => {
       S.favorites = await api.call("toggle_favorite", tool.id);
-      renderNav(); renderToolHead();
+      e.currentTarget.classList.toggle("faved", S.favorites.includes(tool.id));
+      renderNav();
     },
-  }, [svgIcon(ICON.star, 17)]);
+  }, [svgIcon(ICON.star, 18)]);
 
-  const iconBox = el("div", { class: "tool-icon" }, [svgIcon(tool.icon, 22)]);
   view.appendChild(el("div", { class: "tool-head" }, [
-    iconBox,
+    el("button", { class: "icon-btn tool-back", title: "Back to dashboard",
+      onclick: () => showView("dashboard") }, [svgIcon(ICON.back)]),
+    el("div", { class: "tool-icon " + (CAT_CLASS[tool.category] || "system") }, [svgIcon(tool.icon, 23)]),
     el("div", { class: "tool-title-wrap" }, [
       el("div", { class: "tool-title" }, [tool.name, favBtn]),
       el("div", { class: "tool-desc", text: tool.description }),
     ]),
   ]));
 
-  /* presets */
-  if (tool.options.length) view.appendChild(buildPresetRow(tool));
+  const card = el("div", { class: "ws-card" });
+  view.appendChild(card);
 
-  /* inputs */
+  if (tool.options.length) card.appendChild(buildPresetRow(tool));
+
   if (tool.accepts !== "none") {
-    view.appendChild(buildDropzone(tool));
-    view.appendChild(el("div", { class: "file-chips", id: "file-chips" }));
+    card.appendChild(buildDropzone(tool));
+    card.appendChild(el("div", { class: "file-chips", id: "file-chips" }));
     renderChips();
   }
 
-  /* options */
   if (tool.options.length) {
     const grid = el("div", { class: "options-grid", id: "options-grid" });
-    view.appendChild(grid);
+    card.appendChild(grid);
     renderOptions(tool, grid);
   }
 
-  /* run bar */
-  const runBtn = el("button", { class: "btn btn-primary btn-lg", id: "run-btn", onclick: runCurrent },
-    [svgIcon(ICON.play, 14), tool.accepts === "none" ? "Run diagnostics" : "Run", el("kbd", { text: "Ctrl ↵" })]);
-  view.appendChild(el("div", { class: "run-bar" }, [runBtn]));
+  card.appendChild(el("div", { class: "run-bar" }, [
+    el("button", { class: "btn btn-primary btn-lg", id: "run-btn", onclick: runCurrent },
+      [svgIcon(ICON.play, 14), tool.accepts === "none" ? "Run diagnostics" : "Run", el("kbd", { text: "Ctrl ↵" })]),
+  ]));
 }
 
 /* options form, honoring registry constraints */
@@ -338,19 +549,12 @@ function renderOptions(tool, grid) {
 function allowedChoices(tool, opt) {
   const rules = tool.constraints && tool.constraints[opt.key];
   if (!rules) return opt.choices;
-  for (const [controllerKey, mapping] of Object.entries(groupConstraints(tool))) {
-    if (!(opt.key in mapping)) continue;
-    const controllerVal = String(S.options[controllerKey]);
-    const allowed = mapping[opt.key][controllerVal];
-    if (allowed) return allowed;
-  }
-  // constraints keyed by another option's value: {scale: {modelValue: [..]}}
   const byValue = rules[String(findControllerValue(tool, opt.key))];
   return byValue || opt.choices;
 }
 
-/* constraints are stored as {dependentKey: {controllingValue: allowed[]}};
-   the controlling option is whichever option has those values as choices */
+/* constraints: {dependentKey: {controllingValue: allowed[]}} — the
+   controlling option is whichever option has those values as choices */
 function findControllerValue(tool, dependentKey) {
   const rules = tool.constraints[dependentKey];
   const controllingValues = Object.keys(rules);
@@ -363,9 +567,7 @@ function findControllerValue(tool, dependentKey) {
   return null;
 }
 
-function groupConstraints() { return {}; }   // single-level constraints only
-
-/* ── Presets ───────────────────────────────────────────────────────── */
+/* ── Presets (tool view row) ───────────────────────────────────────── */
 
 function buildPresetRow(tool) {
   const row = el("div", { class: "preset-row" });
@@ -397,7 +599,7 @@ function buildPresetRow(tool) {
   }));
 
   const delBtn = el("button", {
-    class: "btn btn-ghost btn-sm", text: "Delete", disabled: "true",
+    class: "btn btn-ghost btn-sm", text: "Delete",
     onclick: () => {
       const p = S.presets.find((x) => x.id === select.value);
       if (!p) return;
@@ -418,26 +620,23 @@ function buildPresetRow(tool) {
 function buildDropzone(tool) {
   const kindLabel = tool.accepts === "image" ? "images" : "videos";
   const dz = el("div", { class: "dropzone", id: "dropzone" }, [
-    svgIcon(ICON.drop, 26),
-    el("div", { text: "Drop " + kindLabel + " or a folder here" }),
+    el("div", { class: "dz-icon" }, [svgIcon(ICON.drop, 22)]),
+    el("div", { class: "dz-title", text: "Drop " + kindLabel + " here" }),
     el("div", { class: "dz-hint", text: "Folders run as a batch · multiple files queue as separate jobs" }),
     el("div", { class: "dz-buttons" }, [
       el("button", { class: "btn btn-sm", text: "Browse files…", onclick: async (e) => {
         e.stopPropagation();
-        const files = await api.call("pick_files", tool.accepts);
-        addInputs(files);
+        addInputs(await api.call("pick_files", tool.accepts));
       } }),
       el("button", { class: "btn btn-sm", text: "Choose folder…", onclick: async (e) => {
         e.stopPropagation();
-        const folder = await api.call("pick_folder");
-        addInputs(folder);
+        addInputs(await api.call("pick_folder"));
       } }),
     ]),
   ]);
 
   dz.addEventListener("click", async () => {
-    const files = await api.call("pick_files", tool.accepts);
-    addInputs(files);
+    addInputs(await api.call("pick_files", tool.accepts));
   });
   dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("dragover"); });
   dz.addEventListener("dragleave", () => dz.classList.remove("dragover"));
@@ -482,6 +681,7 @@ function renderChips() {
 /* ── Run ───────────────────────────────────────────────────────────── */
 
 async function runCurrent() {
+  if (S.view !== "tool") return;
   const tool = currentTool();
   if (tool.accepts !== "none" && !S.inputs.length) {
     toast("Add a file or folder first", "warn");
@@ -503,7 +703,7 @@ async function runCurrent() {
   }
 }
 
-/* ── Activity panel (queue / history / log) ────────────────────────── */
+/* ── Activity dock (queue / history / log) ─────────────────────────── */
 
 function statusIcon(status) {
   const box = el("span", { class: "job-status" });
@@ -536,7 +736,10 @@ function renderQueuePanel() {
   const st = S.queueState;
 
   if (!st.current && !st.queue.length) {
-    panel.appendChild(el("div", { class: "empty-panel", text: "Nothing queued — drop some files in." }));
+    panel.appendChild(el("div", { class: "empty-panel" }, [
+      el("div", { class: "big", text: "🚀" }),
+      el("div", {}, [el("b", { text: "Queue's clear." }), " Drop something in and let the GPU eat."]),
+    ]));
     return;
   }
 
@@ -583,7 +786,10 @@ function renderHistoryPanel() {
   panel.replaceChildren();
   const items = S.queueState.history;
   if (!items.length) {
-    panel.appendChild(el("div", { class: "empty-panel", text: "No finished jobs yet." }));
+    panel.appendChild(el("div", { class: "empty-panel" }, [
+      el("div", { class: "big", text: "📼" }),
+      el("div", {}, [el("b", { text: "Nothing here yet." }), " Finished renders land here."]),
+    ]));
     return;
   }
   for (const j of items) {
@@ -646,8 +852,6 @@ function switchTab(name) {
 
 async function refreshState(immediate = false) {
   const st = await api.call("get_state");
-  const prevSetupRunning =
-    S.queueState.current && S.queueState.current.tool_id === "setup";
   S.queueState = st;
 
   for (const h of st.history) {
@@ -661,6 +865,7 @@ async function refreshState(immediate = false) {
     }
   }
   renderActivity();
+  if (S.view === "dashboard") renderDashboard();   // keep stats/timeline live
   if (immediate) schedulePoll();
 }
 
@@ -679,11 +884,15 @@ const palette = {
   selected: 0,
 
   buildItems() {
-    const items = S.tools.map((t) => ({
+    const items = [{
+      icon: ICON.home, label: "Home", cat: "Go", keywords: "dashboard start",
+      run: () => showView("dashboard"),
+    }];
+    items.push(...S.tools.map((t) => ({
       icon: t.icon, label: t.name, cat: t.category,
       keywords: (t.keywords || []).join(" "),
-      run: () => selectTool(t.id),
-    }));
+      run: () => openTool(t.id),
+    })));
     const st = S.queueState;
     items.push(
       { icon: ICON.clock, label: st.paused ? "Resume queue" : "Pause queue", cat: "Queue",
@@ -695,10 +904,10 @@ const palette = {
       { icon: ICON.drop, label: "Import presets…", cat: "Presets", keywords: "load",
         run: async () => {
           const res = await api.call("import_presets");
-          if (res.ok) { S.presets = res.presets; renderToolView(); toast(res.count + " presets imported", "ok"); }
+          if (res.ok) { S.presets = res.presets; toast(res.count + " presets imported", "ok"); }
           else if (res.error !== "cancelled") toast(res.error, "err");
         } },
-      { icon: ICON.up, label: "Export presets…", cat: "Presets", keywords: "save share",
+      { icon: ICON.arrow, label: "Export presets…", cat: "Presets", keywords: "save share",
         run: async () => {
           const res = await api.call("export_presets", null);
           if (res.ok) toast(res.count + " presets exported", "ok");
@@ -743,7 +952,6 @@ const palette = {
         else if (hay.includes(" " + q)) score = 1;
         else if (hay.includes(q)) score = 2;
         else {
-          // subsequence
           let i = 0;
           for (const ch of hay) if (ch === q[i]) i++;
           if (i === q.length) score = 3;
@@ -760,19 +968,20 @@ const palette = {
     wrap.replaceChildren();
     const matches = this.match(query);
     if (!matches.length) {
-      wrap.appendChild(el("div", { class: "palette-empty", text: "No matches." }));
+      wrap.appendChild(el("div", { class: "palette-empty", text: "No matches — try “upscale” or “settings”." }));
       return;
     }
     this.matches = matches;
     if (this.selected >= matches.length) this.selected = 0;
     matches.forEach((item, i) => {
-      const node = el("div", {
+      wrap.appendChild(el("div", {
         class: "palette-item" + (i === this.selected ? " selected" : ""),
         onclick: () => { this.hide(); item.run(); },
-        onmousemove: () => { this.selected = i; this.render($("#palette-input").value); },
+        onmousemove: () => {
+          if (this.selected !== i) { this.selected = i; this.render($("#palette-input").value); }
+        },
       }, [svgIcon(item.icon), el("span", { text: item.label }),
-          el("span", { class: "pi-cat", text: item.cat })]);
-      wrap.appendChild(node);
+          el("span", { class: "pi-cat", text: item.cat })]));
     });
   },
 
@@ -820,13 +1029,13 @@ function askText(title, text, onOk) {
   $("#dialog-title").textContent = title;
   $("#dialog-text").textContent = text;
   if (dialogInput) dialogInput.remove();
-  dialogInput = el("input", { type: "text", style: "margin-top:10px" });
+  dialogInput = el("input", { type: "text", style: "margin-top:12px" });
   $("#dialog-text").after(dialogInput);
   openDialog(() => {
     const v = dialogInput.value.trim();
     if (v) onOk(v);
   });
-  setTimeout(() => dialogInput.focus(), 50);
+  setTimeout(() => dialogInput.focus(), 60);
 }
 
 function openDialog(onOk) {
@@ -845,7 +1054,6 @@ async function openSettings() {
   const settings = await api.call("get_settings");
   body.replaceChildren();
 
-  /* output */
   const outInput = el("input", { type: "text", class: "grow", placeholder: "Same folder as input (default)" });
   outInput.value = settings.output_dir || "";
   outInput.readOnly = true;
@@ -864,7 +1072,6 @@ async function openSettings() {
     el("div", { class: "settings-note", text: "Where processed files are written. Default keeps them next to the originals." }),
   ]));
 
-  /* toggles */
   const mkToggle = (label, key, value) => {
     const input = el("input", { type: "checkbox" });
     input.checked = !!value;
@@ -877,13 +1084,12 @@ async function openSettings() {
     mkToggle("Check for updates at startup", "check_updates", settings.check_updates),
   ]));
 
-  /* presets */
   body.appendChild(el("div", { class: "settings-group" }, [
     el("h3", { text: "Presets" }),
     el("div", { class: "settings-row" }, [
       el("button", { class: "btn btn-sm", text: "Import…", onclick: async () => {
         const res = await api.call("import_presets");
-        if (res.ok) { S.presets = res.presets; renderToolView(); toast(res.count + " presets imported", "ok"); }
+        if (res.ok) { S.presets = res.presets; toast(res.count + " presets imported", "ok"); }
         else if (res.error !== "cancelled") toast(res.error, "err");
       } }),
       el("button", { class: "btn btn-sm", text: "Export all…", onclick: async () => {
@@ -894,7 +1100,6 @@ async function openSettings() {
     ]),
   ]));
 
-  /* shortcuts */
   const KEYS = [["Ctrl K", "Command palette"], ["Ctrl ↵", "Run current tool"],
                 ["Ctrl ,", "Settings"], ["Ctrl 1–4", "Switch tools"], ["Esc", "Close dialogs"]];
   body.appendChild(el("div", { class: "settings-group" },
@@ -902,11 +1107,13 @@ async function openSettings() {
       KEYS.map(([k, d]) => el("div", { class: "kbd-row" },
         [el("span", { text: d }), el("kbd", { text: k })])))));
 
-  /* about */
   body.appendChild(el("div", { class: "settings-group" }, [
     el("h3", { text: "About" }),
     el("div", { class: "settings-row" }, [
-      el("span", { class: "grow", text: "GimmeTools v" + S.boot.version }),
+      el("span", { class: "grow" }, [
+        el("span", { class: "grad-text", style: "font-family:var(--font-disp);font-weight:700", text: "GimmeTools" }),
+        " v" + S.boot.version,
+      ]),
       el("button", { class: "btn btn-sm", text: "Check updates", onclick: manualUpdateCheck }),
     ]),
     el("div", { class: "settings-row" }, [
@@ -960,7 +1167,8 @@ function wireEvents() {
     confirmDialog("Clear history", "Remove all finished jobs from history?",
       async () => { await api.call("clear_history"); refreshState(true); }));
   $("#setup-run").addEventListener("click", async () => {
-    await api.call("run_setup");
+    const res = await api.call("run_setup");
+    if (res && res.ok === false) { toast(res.error, "err"); return; }
     $("#setup-banner").classList.add("hidden");
     toast("Setting up — this takes a few minutes the first time");
     switchTab("queue");
@@ -989,6 +1197,13 @@ function wireEvents() {
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", (e) => e.preventDefault());
 
+  /* fast path: detach entrance animations the moment they finish (the
+     timer fallbacks in renderNav/showView cover throttled renderers) */
+  document.addEventListener("animationend", (e) => {
+    if (e.animationName === "nav-in") e.target.style.animation = "none";
+    else if (e.animationName === "view-in") e.target.classList.remove("view-enter");
+  });
+
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey && e.key.toLowerCase() === "k") { e.preventDefault(); palette.open ? palette.hide() : palette.show(); return; }
     if (e.key === "Escape") {
@@ -1001,7 +1216,7 @@ function wireEvents() {
     if (e.ctrlKey && e.key === ",") { e.preventDefault(); openSettings(); }
     if (e.ctrlKey && /^[1-9]$/.test(e.key)) {
       const i = parseInt(e.key, 10) - 1;
-      if (S.tools[i]) { e.preventDefault(); selectTool(S.tools[i].id); }
+      if (S.tools[i]) { e.preventDefault(); openTool(S.tools[i].id); }
     }
   });
 }
