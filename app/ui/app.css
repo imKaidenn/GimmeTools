@@ -169,9 +169,8 @@ kbd {
   box-shadow: var(--glow-purple);
   display: grid;
   place-items: center;
-  font-size: 13px;
-  color: #fff;
 }
+.brand-mark svg { width: 14px; height: 14px; fill: #fff; stroke: none; }
 .brand-gimme { color: var(--text); }
 .brand-tools {
   background: linear-gradient(90deg, var(--cyan), var(--blue));
@@ -1165,6 +1164,16 @@ select option { background: #14121f; }
   border-bottom: 1px solid var(--stroke);
 }
 .onboard-art-in { animation: art-in 420ms var(--ease); }
+
+.onboard-logo {
+  width: 92px; height: 92px;
+  border-radius: 26px;
+  background: var(--grad-brand);
+  box-shadow: 0 14px 44px rgba(124, 58, 237, .55), var(--glow-cyan);
+  display: grid;
+  place-items: center;
+}
+.onboard-logo svg { width: 46px; height: 46px; fill: #fff; stroke: none; }
 @keyframes art-in {
   from { transform: scale(.7) translateY(12px); opacity: 0; }
 }

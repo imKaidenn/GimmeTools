@@ -1305,7 +1305,7 @@ function openShortcuts() {
 
 const ONBOARD_SLIDES = [
   {
-    art: "⚡",
+    art: "logo",
     title: "Your GPU. Your files. Your tools.",
     text: "GimmeTools runs everything locally — background removal, upscaling, video processing. No uploads, no watermarks, no subscription. Just your hardware doing the work.",
   },
@@ -1335,7 +1335,14 @@ function maybeOnboard() {
 function renderOnboardSlide() {
   const slide = ONBOARD_SLIDES[onboardStep];
   const art = $("#onboard-art");
-  art.textContent = slide.art;
+  if (slide.art === "logo") {
+    const logo = el("div", { class: "onboard-logo" });
+    const bolt = svgIcon("M13 2L4.5 14h5.5l-1.5 8L17 10h-5.5L13 2z", 46);
+    logo.appendChild(bolt);
+    art.replaceChildren(logo);
+  } else {
+    art.textContent = slide.art;
+  }
   art.classList.remove("onboard-art-in");
   void art.offsetWidth;
   art.classList.add("onboard-art-in");
