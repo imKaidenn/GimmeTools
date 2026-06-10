@@ -8,7 +8,7 @@ A clean cyberpunk desktop toolkit for the three things you keep needing — **re
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-7c3aed?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/platform-Windows-22d3ee?style=for-the-badge)
-![Version](https://img.shields.io/badge/version-1.1-8b5cf6?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-2.0-8b5cf6?style=for-the-badge)
 
 <img src="screenshots/gimmetools.png" width="780" alt="GimmeTools">
 
@@ -18,13 +18,17 @@ A clean cyberpunk desktop toolkit for the three things you keep needing — **re
 
 ## ⬇️ Install
 
+**From a release** (when available): grab the installer or portable zip from
+[Releases](https://github.com/imKaidenn/GimmeTools/releases) and run `GimmeTools.exe`.
+
+**From source:**
 ```
 1. Download or clone this repo
 2. Double-click  GimmeTools.bat
 3. Done.
 ```
 
-First launch builds a local Python venv inside `tools/venv/` and installs the right ONNX Runtime for your GPU (NVIDIA / AMD / Intel / CPU — auto-detected). Takes a few minutes once, instant after that.
+First launch offers a one-click setup that builds a local Python venv inside `tools/venv/` and installs the right ONNX Runtime for your GPU (NVIDIA / AMD / Intel / CPU — auto-detected). Takes a few minutes once, instant after that.
 
 Sister project to [**GimmeDat**](https://github.com/imKaidenn/GimmeDat) — same cyberpunk family.
 
@@ -36,7 +40,7 @@ Sister project to [**GimmeDat**](https://github.com/imKaidenn/GimmeDat) — same
 - 🔍 **Upscale images** — **Real-ESRGAN** (ncnn-vulkan). Works on NVIDIA / AMD / Intel GPUs via Vulkan. 2× / 4×, photo or anime models.
 - 🎬 **Process video** — **HandBrakeCLI** encode, optional **Topaz Video AI** enhance pass if you own it. H.265 1080p preset bundled.
 - 🚀 **GPU auto-detect** — reads display adapters from the registry, installs `onnxruntime-gpu` / `directml` / `cpu` as appropriate. No driver gymnastics.
-- 🖥 **Desktop UI** — `GimmeTools.bat` opens a thin customtkinter UI that mirrors the GimmeDat palette. Tabs for each tool, live log panel, batch toggle, Diagnostics button.
+- 🖥 **Desktop app (v2)** — command palette (Ctrl+K), sidebar with favorites & recents, drag-and-drop, batch queue with pause/reorder, job history, saved presets, toasts, keyboard shortcuts. Native window + system WebView2, ~1s startup. Classic UI kept as fallback.
 - ⌨ **CLI too** — every tool is a standalone Python script under `scripts/` — use the UI or the terminal.
 - 🪟 **Right-click menu (optional)** — `install\register_context_menu.ps1` adds GimmeTools actions to the Windows right-click menu for images and videos.
 - 💜 **All local.** No uploads, no API keys, no cloud bills.
@@ -94,7 +98,8 @@ set PY=tools\venv\Scripts\python.exe
 ```
 GimmeTools/
   GimmeTools.bat         ← double-click launcher
-  ui/gimmetools.py       ← customtkinter desktop UI
+  app/                   ← v2 desktop app (pywebview shell, services, web UI)
+  ui/gimmetools.py       ← classic customtkinter UI (fallback)
   scripts/
     remove_bg.py         ← rembg + BiRefNet
     upscale_image.py     ← Real-ESRGAN
