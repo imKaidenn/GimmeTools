@@ -28,7 +28,7 @@ def _resolve_toolkit_root() -> Path:
 TOOLKIT_ROOT: Path = _resolve_toolkit_root()
 
 # Toolkit release version — single source for log headers and the UI title.
-VERSION = "1.1"
+VERSION = "2.0"
 
 DEFAULTS: dict = {
     "version": "1.0",

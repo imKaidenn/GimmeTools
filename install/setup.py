@@ -177,9 +177,9 @@ def main() -> int:
     run([vpy, "-c", bootstrap])
     log("    OK: config/config.json ready")
 
-    # 8. UI library
-    step("Installing UI library (customtkinter)...")
-    run([vpy, "-m", "pip", "install", "customtkinter>=5.2.0", "--quiet"])
+    # 8. UI libraries (pywebview = v2 desktop app, customtkinter = classic fallback)
+    step("Installing UI libraries (pywebview, customtkinter)...")
+    run([vpy, "-m", "pip", "install", "pywebview>=5.0", "customtkinter>=5.2.0", "--quiet"])
     log("    OK")
 
     # 9. external tools reminder
