@@ -24,7 +24,8 @@ class PresetStore:
 
     def _load(self) -> list[dict]:
         try:
-            data = json.loads(self._path.read_text(encoding="utf-8"))
+            # utf-8-sig: tolerate a BOM from hand-edits/external writers
+            data = json.loads(self._path.read_text(encoding="utf-8-sig"))
             return data if isinstance(data, list) else []
         except Exception:
             return []
@@ -89,7 +90,7 @@ class PresetStore:
         return len(presets)
 
     def import_from(self, file_path: Path) -> int:
-        payload = json.loads(file_path.read_text(encoding="utf-8"))
+        payload = json.loads(file_path.read_text(encoding="utf-8-sig"))
         if payload.get("format") != _FORMAT:
             raise ValueError("not a GimmeTools preset file")
         count = 0

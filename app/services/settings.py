@@ -25,7 +25,8 @@ class UiState:
 
     def _load(self) -> dict:
         try:
-            data = json.loads(self._path.read_text(encoding="utf-8"))
+            # utf-8-sig: tolerate a BOM from hand-edits/external writers
+            data = json.loads(self._path.read_text(encoding="utf-8-sig"))
             return data if isinstance(data, dict) else {}
         except Exception:
             return {}
@@ -94,7 +95,7 @@ class AppSettings:
 
     def _read(self) -> dict:
         try:
-            return json.loads(self._path.read_text(encoding="utf-8"))
+            return json.loads(self._path.read_text(encoding="utf-8-sig"))
         except Exception:
             return {}
 

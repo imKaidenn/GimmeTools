@@ -79,8 +79,11 @@ preview environment — see the note in DESIGN_REVIEW.md):
 
 ## Not done (and why)
 
-- **Before/after screenshots** — capture tooling was non-functional this session;
-  structural verification substituted. Worth re-running on a healthy environment.
+- ~~**Before/after screenshots**~~ — **done after the fact**: captured from the real
+  running app via Win32 `PrintWindow` (see `screenshots/` — dashboard, palette, tool
+  workspace, onboarding). The capture exercise also surfaced and fixed a real bug:
+  JSON state files written with a UTF-8 BOM (Notepad-style) were silently treated as
+  empty; all loaders now read `utf-8-sig`.
 - **Custom titlebar/frameless window** — native frame kept deliberately: snap layouts,
   accessibility, and zero custom window-management bugs beat the aesthetic gain for now.
 - **Drag-to-reorder queue rows** — hover buttons + context menu cover it; full DnD

@@ -4,12 +4,13 @@ Scored against the bar of a funded creator product (Arc / Linear / Raycast / Dis
 CapCut / Spotify). Anything below 9 got redesigned in the polish pass — the fixes are
 documented per screen and in [POLISH_PHASE.md](POLISH_PHASE.md).
 
-> **On screenshots:** the preview panel's screenshot capture was non-functional in this
-> environment for the entire polish session (capture timeouts while the page itself
-> answered DOM queries instantly). Verification was done with structural and
-> computed-style assertions against the live page instead — every "after" claim below
-> was machine-checked, not eyeballed. To see it yourself: `GimmeTools.bat` or
-> `dist\GimmeTools\GimmeTools.exe`.
+> **On screenshots:** the browser-preview capture tool was non-functional during the
+> polish session, so verification was done with structural and computed-style
+> assertions against the live page. "After" screenshots were subsequently captured
+> from the **real running app** (Win32 `PrintWindow` on the actual WebView2 window):
+> see [`screenshots/gimmetools.png`](../screenshots/gimmetools.png) (dashboard),
+> [`palette.png`](../screenshots/palette.png), [`tool.png`](../screenshots/tool.png),
+> and [`onboarding.png`](../screenshots/onboarding.png).
 
 ---
 
