@@ -29,6 +29,12 @@ def ui_dir() -> Path:
     return Path(__file__).resolve().parent / "ui"
 
 
+def assets_dir() -> Path:
+    if FROZEN:
+        return Path(getattr(sys, "_MEIPASS", toolkit_root())) / "assets"
+    return toolkit_root() / "assets"
+
+
 def bootstrap_python() -> Path | None:
     """An interpreter able to run install/setup.py.
 

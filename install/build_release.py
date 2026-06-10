@@ -30,7 +30,7 @@ DIST = ROOT / "dist"
 STAGE = DIST / "GimmeTools"
 
 # Runtime trees shipped beside the exe (real folders, not bundled)
-RUNTIME_DIRS = ["scripts", "install", "app/ui"]
+RUNTIME_DIRS = ["scripts", "install", "app/ui", "assets"]
 RUNTIME_FILES = ["config/hb-preset.json", "README.md", "LICENSE", "GimmeTools.bat"]
 EMPTY_DIRS = ["logs", "models", "outputs/tmp", "tools/ffmpeg", "tools/realesrgan", "data"]
 
@@ -68,7 +68,9 @@ def build_exe() -> bool:
         "--specpath", str(ROOT / "build"),
         "--paths", str(ROOT),
         "--paths", str(ROOT / "scripts"),
+        "--icon", str(ROOT / "assets" / "icon.ico"),
         "--add-data", f"{ROOT / 'app' / 'ui'};app/ui",
+        "--add-data", f"{ROOT / 'assets'};assets",
         "--hidden-import", "webview.platforms.edgechromium",
         "--hidden-import", "webview.platforms.winforms",
         str(ROOT / "app" / "main.py"),
@@ -137,6 +139,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=.
 OutputBaseFilename=GimmeTools-Setup-{VERSION}
+SetupIconFile=GimmeTools\assets\icon.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
