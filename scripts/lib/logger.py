@@ -1,5 +1,5 @@
 """
-Logging for MediaTools.
+Logging for GimmeTools.
 
 Each run gets its own timestamped file: YYYY-MM-DD_HH-MM-SS_<operation>.log
 Old files are rotated when the count exceeds max_log_files.
@@ -38,6 +38,14 @@ def setup_logger(
         A configured Logger instance. The same name can be retrieved later
         with logging.getLogger('mediatools.<operation>').
     """
+    # Unencodable characters (unicode filenames on a cp1252 console) must
+    # degrade, not crash the run.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except Exception:
+            pass
+
     logs_dir.mkdir(parents=True, exist_ok=True)
     _rotate(logs_dir, max_log_files)
 
@@ -66,10 +74,16 @@ def setup_logger(
     return logger
 
 
-def log_header(logger: logging.Logger, operation: str, version: str = "1.0") -> None:
+def log_header(logger: logging.Logger, operation: str, version: str | None = None) -> None:
     """Write the mandatory run header to the log."""
     import platform
-    logger.info("── MediaTools v%s ──────────────────────────", version)
+    if version is None:
+        try:
+            from .config import VERSION
+        except ImportError:  # running as a standalone script, not a package
+            from config import VERSION
+        version = VERSION
+    logger.info("── GimmeTools v%s ──────────────────────────", version)
     logger.info("Operation  : %s", operation)
     logger.info("Platform   : %s %s", platform.system(), platform.version())
     logger.info("Python     : %s", platform.python_version())
@@ -101,6 +115,13 @@ if __name__ == "__main__":
     import tempfile
     import time
 
+    def _close(lg: logging.Logger) -> None:
+        # Windows won't delete (rotate) a log whose handler is still open.
+        # Real runs are one process per logger so this only matters here.
+        for h in lg.handlers:
+            h.close()
+        lg.handlers.clear()
+
     with tempfile.TemporaryDirectory() as tmp:
         log_dir = Path(tmp) / "logs"
         logger = setup_logger("test-op", log_dir, level="DEBUG", max_log_files=5)
@@ -117,10 +138,11 @@ if __name__ == "__main__":
         assert "Operation  : test-op" in log_text
         assert "debug message" in log_text
         assert "info message" in log_text
+        _close(logger)
 
         # Test rotation
         for i in range(6):
-            setup_logger(f"op-{i}", log_dir, max_log_files=5)
+            _close(setup_logger(f"op-{i}", log_dir, max_log_files=5))
             time.sleep(0.01)
 
         remaining = list(log_dir.glob("*.log"))

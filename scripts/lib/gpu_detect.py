@@ -1,5 +1,5 @@
 """
-GPU detection for MediaTools.
+GPU detection for GimmeTools.
 
 Determines the best available ONNX Runtime execution provider:
   CUDA (NVIDIA)  → requires onnxruntime-gpu
@@ -31,8 +31,9 @@ def detect(gpu_setting: str = "auto") -> GPUInfo:
     Args:
         gpu_setting: "auto" tries GPU then falls back to CPU.
                      "cpu"  forces CPU regardless of hardware.
-                     "cuda" forces CUDA (errors if unavailable).
-                     "directml" forces DirectML (errors if unavailable).
+                     "cuda" prefers CUDA (falls back to CPU if unavailable —
+                            the fallback is named in the returned detail).
+                     "directml" prefers DirectML (same fallback behavior).
 
     Returns:
         GPUInfo — never raises.
@@ -61,7 +62,7 @@ def detect(gpu_setting: str = "auto") -> GPUInfo:
             )
 
         if gpu_setting in ("auto", "directml") and "DmlExecutionProvider" in available:
-            name = _wmi_gpu_name()
+            name = _registry_gpu_name()
             return GPUInfo(
                 provider="directml",
                 name=name,
@@ -69,20 +70,17 @@ def detect(gpu_setting: str = "auto") -> GPUInfo:
                 detail=f"{name or 'AMD/Intel GPU'} — DmlExecutionProvider — onnxruntime {ort_ver}",
             )
 
-        if gpu_setting not in ("auto", "cpu"):
-            # Forced provider not available — log but do not raise
-            pass
-
-    except ImportError:
-        pass
     except Exception:
         pass
 
+    detail = "CPU only — no GPU provider available"
+    if gpu_setting in ("cuda", "directml"):
+        detail = f"CPU fallback — requested '{gpu_setting}' provider is not available"
     return GPUInfo(
         provider="cpu",
         name=None,
         ort_version=_ort_version(),
-        detail="CPU only — no GPU provider available",
+        detail=detail,
     )
 
 
@@ -118,20 +116,34 @@ def _nvidia_name() -> Optional[str]:
     return None
 
 
-def _wmi_gpu_name() -> Optional[str]:
-    """Best-effort WMI query for the primary GPU name on Windows."""
+def _registry_gpu_name() -> Optional[str]:
+    """
+    Read the primary display adapter name from the registry.
+    (wmic is removed on current Windows 11 builds — don't shell out to it.)
+    """
     try:
-        result = subprocess.run(
-            ["wmic", "path", "win32_VideoController", "get", "name"],
-            capture_output=True, text=True, timeout=5,
+        import winreg
+        key_path = (
+            r"SYSTEM\CurrentControlSet\Control\Class"
+            r"\{4d36e968-e325-11ce-bfc1-08002be10318}"
         )
-        if result.returncode == 0:
-            lines = [
-                ln.strip() for ln in result.stdout.splitlines()
-                if ln.strip() and ln.strip().lower() != "name"
-            ]
-            if lines:
-                return lines[0]
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as base:
+            i = 0
+            while True:
+                try:
+                    sub = winreg.EnumKey(base, i)
+                    i += 1
+                except OSError:
+                    break
+                if not sub.isdigit():
+                    continue
+                try:
+                    with winreg.OpenKey(base, sub) as k:
+                        desc, _ = winreg.QueryValueEx(k, "DriverDesc")
+                        if desc:
+                            return str(desc)
+                except OSError:
+                    continue
     except Exception:
         pass
     return None

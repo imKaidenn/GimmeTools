@@ -1,5 +1,5 @@
 """
-MediaTools — Video Processing Pipeline
+GimmeTools — Video Processing Pipeline
 
 Video → (optional) Topaz Video AI enhance → HandBrakeCLI encode → final output.
 
@@ -7,13 +7,14 @@ Usage:
     python process_video.py input.mp4
     python process_video.py input.mp4 --output final.mp4
     python process_video.py input.mp4 --skip-topaz
-    python process_video.py input.mp4 --batch videos/
+    python process_video.py videos/ --batch
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -25,7 +26,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from lib.config import Config
 from lib.logger import setup_logger, log_header
-from lib.gpu_detect import detect as detect_gpu
 from lib.tool_discovery import find_ffmpeg, find_ffprobe, find_handbrake, find_topaz
 
 VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".ts", ".mts"}
@@ -97,12 +97,17 @@ def run_topaz(
     """
     is_v3 = topaz_exe.name.lower() == "ffmpeg.exe"
 
+    env = os.environ.copy()
     if is_v3:
+        _set_tvai_env(env, topaz_exe, logger)
         vf = f"tvai_up=model={model}:scale={scale}:device=0"
         cmd = [
             str(topaz_exe),
             "-i", str(input_path),
             "-vf", vf,
+            # High-quality intermediate; HandBrake does the final compression.
+            "-c:v", "libx264", "-crf", "14", "-preset", "fast",
+            "-pix_fmt", "yuv420p",
             "-c:a", "copy",
             "-y",
             str(output_path),
@@ -122,7 +127,8 @@ def run_topaz(
 
     try:
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=7200  # 2hr max
+            cmd, capture_output=True, text=True, timeout=7200,  # 2hr max
+            env=env,
         )
         elapsed = time.perf_counter() - start
         if result.returncode != 0:
@@ -143,6 +149,28 @@ def run_topaz(
         return False
 
 
+def _set_tvai_env(env: dict, topaz_exe: Path, logger) -> None:
+    """
+    Topaz's ffmpeg needs TVAI_MODEL_DIR / TVAI_MODEL_DATA_DIR to locate its
+    models (the GUI sets these in its own session; a bare subprocess has
+    neither). Respect values the user already exported.
+    """
+    program_data = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
+    candidates = [
+        program_data / "Topaz Labs LLC" / "Topaz Video AI" / "models",
+        topaz_exe.parent / "models",
+    ]
+    model_dir = next((c for c in candidates if c.is_dir()), None)
+
+    if "TVAI_MODEL_DIR" not in env:
+        if model_dir:
+            env["TVAI_MODEL_DIR"] = str(model_dir)
+        else:
+            logger.warning("Topaz models dir not found — set TVAI_MODEL_DIR if the Topaz step fails")
+    if "TVAI_MODEL_DATA_DIR" not in env and model_dir:
+        env["TVAI_MODEL_DATA_DIR"] = str(model_dir)
+
+
 # ── HandBrake Step ─────────────────────────────────────────────────────────────
 
 def run_handbrake(
@@ -161,6 +189,7 @@ def run_handbrake(
     ]
 
     if preset_file and preset_file.exists():
+        preset_name = _validate_preset_name(preset_file, preset_name, logger)
         cmd += ["--preset-import-file", str(preset_file), "-Z", preset_name]
     else:
         # Fallback to built-in preset
@@ -194,6 +223,26 @@ def run_handbrake(
         return False
 
 
+def _validate_preset_name(preset_file: Path, preset_name: str, logger) -> str:
+    """
+    The configured preset name and the preset file are user-editable
+    independently. If the name isn't in the file, fall back to the file's
+    first preset instead of letting HandBrake die with a cryptic error.
+    """
+    try:
+        data = json.loads(preset_file.read_text(encoding="utf-8"))
+        names = [p.get("PresetName", "") for p in data.get("PresetList", [])]
+        if preset_name in names:
+            return preset_name
+        if names and names[0]:
+            logger.warning("Preset '%s' not in %s — using '%s'",
+                           preset_name, preset_file.name, names[0])
+            return names[0]
+    except Exception as e:
+        logger.warning("Could not parse preset file %s: %s", preset_file, e)
+    return preset_name
+
+
 # ── Pipeline ───────────────────────────────────────────────────────────────────
 
 def process_one(
@@ -209,9 +258,6 @@ def process_one(
     """
     logger.info("Input      : %s", input_path)
     logger.info("Output     : %s", output_path)
-
-    gpu = detect_gpu(cfg.get("background_removal", "gpu", default="auto"))
-    logger.info("GPU        : %s", gpu.detail)
 
     # ── Step 1: Probe ──
     ffprobe_result = find_ffprobe(cfg.ffprobe_exe)
@@ -263,7 +309,7 @@ def process_one(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     preset_name = cfg.get("video_pipeline", "handbrake_preset_name",
-                          default="MediaTools H.265 1080p")
+                          default="GimmeTools H.265 1080p")
 
     success = run_handbrake(
         hb_result.path, topaz_input, output_path,
@@ -369,7 +415,7 @@ def main() -> int:
         logger.info("══ Batch complete: %d/%d succeeded ══", total - failed, total)
         print(f"\nDone: {total - failed}/{total} succeeded.")
 
-    return 1 if failed == total else 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

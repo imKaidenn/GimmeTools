@@ -1,7 +1,7 @@
 """
-External tool discovery for MediaTools.
+External tool discovery for GimmeTools.
 
-Finds: ffmpeg, ffprobe, HandBrakeCLI, Topaz Video AI.
+Finds: ffmpeg, ffprobe, HandBrakeCLI, Topaz Video AI, realesrgan-ncnn-vulkan.
 
 Discovery order for each tool:
   1. Explicit path in config.json (paths.<tool>_exe)
@@ -29,7 +29,7 @@ def _toolkit_root() -> Path:
     env = os.environ.get("MEDIATOOLS_ROOT", "")
     if env:
         return Path(env).resolve()
-    # scripts/lib/tool_discovery.py -> lib -> scripts -> MediaTools
+    # scripts/lib/tool_discovery.py -> lib -> scripts -> GimmeTools
     return Path(__file__).resolve().parent.parent.parent
 
 
@@ -96,7 +96,7 @@ def find_handbrake(config_path: Optional[Path] = None) -> ToolResult:
     candidates = _build_candidates(
         env_var="MEDIATOOLS_HANDBRAKE_EXE",
         config_path=config_path,
-        bundled=[],
+        bundled=[_ROOT / "tools" / "handbrake" / "HandBrakeCLI.exe"],
         install_paths=install_paths,
         which_name="HandBrakeCLI",
     )
@@ -176,6 +176,36 @@ def find_topaz(config_path: Optional[Path] = None) -> ToolResult:
     return result
 
 
+def find_realesrgan(config_path: Optional[Path] = None) -> ToolResult:
+    candidates = _build_candidates(
+        env_var="MEDIATOOLS_REALESRGAN_EXE",
+        config_path=config_path,
+        bundled=[
+            _ROOT / "tools" / "realesrgan" / "realesrgan-ncnn-vulkan.exe",
+            _ROOT / "tools" / "realesrgan" / "realesrgan-ncnn-vulkan",
+        ],
+        install_paths=[],
+        which_name="realesrgan-ncnn-vulkan",
+    )
+    # The binary has no version flag; existence is the whole check.
+    for c in candidates:
+        if c.exists():
+            return ToolResult(
+                name="realesrgan-ncnn-vulkan",
+                path=c, version=None, found=True,
+                detail=f"realesrgan-ncnn-vulkan: {c}",
+            )
+    return ToolResult(
+        name="realesrgan-ncnn-vulkan",
+        path=None, version=None, found=False,
+        detail=(
+            "realesrgan-ncnn-vulkan not found. "
+            "Download from https://github.com/xinntao/Real-ESRGAN/releases "
+            "and extract to tools/realesrgan/, or set MEDIATOOLS_REALESRGAN_EXE."
+        ),
+    )
+
+
 # ── Internal ───────────────────────────────────────────────────────────────────
 
 def _build_candidates(
@@ -252,10 +282,11 @@ def _first_line(output: str) -> Optional[str]:
 
 if __name__ == "__main__":
     for label, result in [
-        ("ffmpeg",      find_ffmpeg()),
-        ("ffprobe",     find_ffprobe()),
+        ("ffmpeg",       find_ffmpeg()),
+        ("ffprobe",      find_ffprobe()),
         ("HandBrakeCLI", find_handbrake()),
-        ("Topaz",       find_topaz()),
+        ("Topaz",        find_topaz()),
+        ("Real-ESRGAN",  find_realesrgan()),
     ]:
         status = "FOUND" if result.found else "NOT FOUND"
         print(f"  [{status:9}] {result.detail}")

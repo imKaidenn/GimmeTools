@@ -1,5 +1,5 @@
 """
-MediaTools — Background Removal
+GimmeTools — Background Removal
 
 Remove backgrounds from images using rembg + BiRefNet (ONNX).
 Outputs transparent PNGs.
@@ -14,11 +14,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from pathlib import Path
 
-# Allow running from scripts/ or from MediaTools root
+# Allow running from scripts/ or from GimmeTools root
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from lib.config import Config
@@ -40,7 +41,7 @@ def remove_background(
         from rembg import remove, new_session
         from PIL import Image
     except ImportError as e:
-        logger.error("Missing dependency: %s — run install/setup.ps1 first", e)
+        logger.error("Missing dependency: %s — run GimmeTools.bat (or: py install\\setup.py) first", e)
         return False
 
     logger.info("Input      : %s", input_path)
@@ -113,6 +114,11 @@ def main() -> int:
     args = parser.parse_args()
     cfg = Config.load()
 
+    # rembg reads U2NET_HOME for model storage — pin it to the toolkit's
+    # models/ dir so models stay inside the portable folder, not ~/.u2net.
+    os.environ.setdefault("U2NET_HOME", str(cfg.models_dir))
+    cfg.models_dir.mkdir(parents=True, exist_ok=True)
+
     logger = setup_logger("remove-bg", cfg.logs_dir, cfg.log_level, cfg.max_log_files)
     log_header(logger, "background-removal")
 
@@ -151,7 +157,7 @@ def main() -> int:
         logger.info("── Batch complete: %d/%d succeeded ──", total - failed, total)
         print(f"\nDone: {total - failed}/{total} succeeded.")
 
-    return 1 if failed == total else 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
