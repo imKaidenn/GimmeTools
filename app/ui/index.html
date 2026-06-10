@@ -75,12 +75,46 @@
   <div class="palette">
     <div class="palette-input-row">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-      <input id="palette-input" type="text" placeholder="Search tools and actions…" autocomplete="off" spellcheck="false">
+      <input id="palette-input" type="text" placeholder="Search tools, presets, actions…" autocomplete="off" spellcheck="false">
       <kbd>esc</kbd>
     </div>
     <div id="palette-results" class="palette-results"></div>
+    <div class="palette-foot">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+      <span><kbd>↵</kbd> run</span>
+      <span><kbd>esc</kbd> close</span>
+    </div>
   </div>
 </div>
+
+<!-- ── Keyboard shortcuts overlay ──────────────────────────────────── -->
+<div id="shortcuts-overlay" class="overlay hidden">
+  <div class="modal modal-sm sc-modal">
+    <div class="modal-head">
+      <h2>Keyboard shortcuts</h2>
+      <button class="icon-btn" data-close>✕</button>
+    </div>
+    <div class="modal-body" id="shortcuts-body"></div>
+  </div>
+</div>
+
+<!-- ── Onboarding ──────────────────────────────────────────────────── -->
+<div id="onboarding" class="overlay hidden">
+  <div class="modal onboard">
+    <div class="onboard-art" id="onboard-art"></div>
+    <div class="onboard-body">
+      <div class="onboard-dots" id="onboard-dots"></div>
+      <h2 id="onboard-title"></h2>
+      <p id="onboard-text"></p>
+      <div class="onboard-actions">
+        <button id="onboard-skip" class="btn btn-ghost">Skip</button>
+        <button id="onboard-next" class="btn btn-primary">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="ctx-menu" class="ctx-menu hidden"></div>
 
 <!-- ── Settings ────────────────────────────────────────────────────── -->
 <div id="settings-modal" class="overlay hidden">

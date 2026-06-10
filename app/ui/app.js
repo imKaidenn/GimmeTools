@@ -216,6 +216,7 @@ async function boot() {
   showView("dashboard");
   renderActivity();
   schedulePoll();
+  maybeOnboard();
 }
 
 /* ── View router ───────────────────────────────────────────────────── */
@@ -371,6 +372,28 @@ function renderDashboard() {
       el("div", { class: "qa-go" }, ["Open", svgIcon(ICON.arrow, 12)]),
     ]))));
 
+  /* tips + smart recommendations */
+  const sideCards = [];
+  for (const r of recommendations()) {
+    sideCards.push(el("div", { class: "rec-card " + (r.tone || "") }, [
+      el("div", { class: "icon-orb " + (r.tone || "") }, [svgIcon(r.icon, 15)]),
+      el("div", { class: "rec-body" }, [
+        el("div", { class: "rec-title", text: r.title }),
+        el("div", { class: "rec-text", text: r.text }),
+      ]),
+      r.cta ? el("button", { class: "btn btn-sm", text: r.cta, onclick: r.run }) : null,
+    ]));
+  }
+  sideCards.push(el("div", { class: "rec-card tip" }, [
+    el("div", { class: "icon-orb brand" }, [svgIcon(ICON.sparkle, 15)]),
+    el("div", { class: "rec-body" }, [
+      el("div", { class: "rec-title", text: "Creator tip" }),
+      el("div", { class: "rec-text", text: TIPS[currentTipIndex()] }),
+    ]),
+    el("button", { class: "btn btn-ghost btn-sm", text: "Next", onclick: nextTip }),
+  ]));
+  v.appendChild(el("div", { class: "rec-row" }, sideCards));
+
   /* two columns: recent projects + activity timeline */
   const recentCard = el("div", { class: "dash-card" });
   const hist = S.queueState.history;
@@ -450,8 +473,24 @@ function renderDashboard() {
 }
 
 function statCard(value, label) {
+  const valueEl = el("div", {
+    class: "stat-value" + (typeof value === "number" && value > 0 ? " grad-text" : ""),
+    text: String(value),
+  });
+  // Count up on first paint — purposeful "alive" feedback, settles fast.
+  if (typeof value === "number" && value > 1 &&
+      !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const t0 = performance.now(), dur = 480;
+    const tick = (t) => {
+      const p = Math.min((t - t0) / dur, 1);
+      valueEl.textContent = String(Math.round(value * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    setTimeout(() => { valueEl.textContent = String(value); }, dur + 100);
+  }
   return el("div", { class: "stat-card" }, [
-    el("div", { class: "stat-value" + (typeof value === "number" && value > 0 ? " grad-text" : ""), text: String(value) }),
+    valueEl,
     el("div", { class: "stat-label", text: label }),
   ]);
 }
@@ -696,6 +735,16 @@ async function runCurrent() {
   }
   if (queued) {
     toast(queued === 1 ? "Job queued" : queued + " jobs queued", "ok");
+    const btn = $("#run-btn");
+    if (btn) {                       // success feedback right on the button
+      btn.classList.add("btn-success");
+      btn.replaceChildren(svgIcon(ICON.check, 14), "Queued");
+      setTimeout(() => {
+        if (!document.contains(btn)) return;
+        btn.classList.remove("btn-success");
+        btn.replaceChildren(svgIcon(ICON.play, 14), "Run", el("kbd", { text: "Ctrl ↵" }));
+      }, 1300);
+    }
     S.inputs = [];
     renderChips();
     renderNav();
@@ -763,7 +812,7 @@ function renderQueuePanel() {
   }
 
   st.queue.forEach((j, i) => {
-    panel.appendChild(el("div", { class: "job-row" }, [
+    const row = el("div", { class: "job-row" }, [
       statusIcon("queued"),
       el("span", { class: "job-label", text: j.label }),
       el("span", { class: "job-tool", text: j.tool_name }),
@@ -777,7 +826,17 @@ function renderQueuePanel() {
         } }),
         el("button", { class: "icon-btn", title: "Remove", text: "✕", onclick: () => cancelJob(j.id) }),
       ]),
-    ]));
+    ]);
+    row.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      showCtxMenu(e.clientX, e.clientY, [
+        { icon: ICON.up, label: "Move up", run: async () => { await api.call("move_job", j.id, -1); refreshState(true); } },
+        { icon: ICON.down, label: "Move down", run: async () => { await api.call("move_job", j.id, 1); refreshState(true); } },
+        "-",
+        { icon: ICON.x, label: "Remove from queue", danger: true, run: () => cancelJob(j.id) },
+      ]);
+    });
+    panel.appendChild(row);
   });
 }
 
@@ -794,12 +853,23 @@ function renderHistoryPanel() {
   }
   for (const j of items) {
     const dur = j.started && j.ended ? fmtDuration(j.ended - j.started) : "";
-    panel.appendChild(el("div", { class: "job-row", onclick: () => showLog(j.id) }, [
+    const row = el("div", { class: "job-row", onclick: () => showLog(j.id) }, [
       statusIcon(j.status),
       el("span", { class: "job-label", text: j.label }),
       el("span", { class: "job-tool", text: j.tool_name }),
       el("span", { class: "job-meta", text: [dur, fmtAgo(j.ended)].filter(Boolean).join(" · ") }),
-    ]));
+    ]);
+    row.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      showCtxMenu(e.clientX, e.clientY, [
+        { icon: ICON.clock, label: "View log", run: () => showLog(j.id) },
+        "-",
+        { icon: ICON.x, label: "Clear all history", danger: true,
+          run: () => confirmDialog("Clear history", "Remove all finished jobs from history?",
+            async () => { await api.call("clear_history"); refreshState(true); }) },
+      ]);
+    });
+    panel.appendChild(row);
   }
 }
 
@@ -889,10 +959,24 @@ const palette = {
       run: () => showView("dashboard"),
     }];
     items.push(...S.tools.map((t) => ({
-      icon: t.icon, label: t.name, cat: t.category,
+      icon: t.icon, label: t.name, cat: t.category, toolId: t.id,
       keywords: (t.keywords || []).join(" "),
       run: () => openTool(t.id),
     })));
+    items.push(...S.presets.map((p) => {
+      const tool = S.tools.find((t) => t.id === p.tool_id);
+      return {
+        icon: ICON.star, label: "Apply preset: " + p.name,
+        cat: tool ? tool.name : "Presets",
+        keywords: "preset " + p.name + " " + (tool ? tool.name : ""),
+        run: async () => {
+          await openTool(p.tool_id);
+          S.options = Object.assign({}, S.options, p.options);
+          renderToolView();
+          toast("Preset “" + p.name + "” applied", "ok");
+        },
+      };
+    }));
     const st = S.queueState;
     items.push(
       { icon: ICON.clock, label: st.paused ? "Resume queue" : "Pause queue", cat: "Queue",
@@ -921,6 +1005,8 @@ const palette = {
           const s = await api.call("get_settings");
           await api.call("open_path", s.output_dir || (S.boot.root + "\\outputs"));
         } },
+      { icon: ICON.bolt, label: "Keyboard shortcuts", cat: "App", keywords: "keys hotkeys help",
+        run: () => openShortcuts() },
     );
     return items;
   },
@@ -966,14 +1052,46 @@ const palette = {
   render(query) {
     const wrap = $("#palette-results");
     wrap.replaceChildren();
-    const matches = this.match(query);
+
+    let matches;
+    let groups = null;
+    if (!query) {
+      // Browsing mode: Suggested (recent tools) first, then grouped catalog
+      const groupOf = (it) =>
+        it.label.startsWith("Apply preset") ? "Presets" : it.cat;
+      const ORDER = ["Go", "Image", "Video", "System", "Presets", "Queue", "App"];
+      const suggested = S.recents
+        .map((id) => this.items.find((it) => it.toolId === id))
+        .filter(Boolean)
+        .slice(0, 3);
+      const rest = this.items
+        .filter((it) => !suggested.includes(it))
+        .sort((a, b) => ORDER.indexOf(groupOf(a)) - ORDER.indexOf(groupOf(b)));
+      matches = suggested.concat(rest);
+      groups = new Map();
+      suggested.forEach((it) => groups.set(it, "Suggested"));
+      rest.forEach((it) => groups.set(it, groupOf(it)));
+    } else {
+      matches = this.match(query);    // searching: ranked flat list
+    }
+
     if (!matches.length) {
       wrap.appendChild(el("div", { class: "palette-empty", text: "No matches — try “upscale” or “settings”." }));
+      this.matches = [];
       return;
     }
     this.matches = matches;
     if (this.selected >= matches.length) this.selected = 0;
+
+    let lastGroup = null;
     matches.forEach((item, i) => {
+      if (groups) {
+        const g = groups.get(item);
+        if (g !== lastGroup) {
+          wrap.appendChild(el("div", { class: "palette-group", text: g }));
+          lastGroup = g;
+        }
+      }
       wrap.appendChild(el("div", {
         class: "palette-item" + (i === this.selected ? " selected" : ""),
         onclick: () => { this.hide(); item.run(); },
@@ -983,6 +1101,9 @@ const palette = {
       }, [svgIcon(item.icon), el("span", { text: item.label }),
           el("span", { class: "pi-cat", text: item.cat })]));
     });
+
+    const sel = wrap.querySelector(".palette-item.selected");
+    if (sel) sel.scrollIntoView({ block: "nearest" });
   },
 
   key(e) {
@@ -998,11 +1119,34 @@ const palette = {
   },
 };
 
+/* ── Context menu ──────────────────────────────────────────────────── */
+
+function showCtxMenu(x, y, items) {
+  const menu = $("#ctx-menu");
+  menu.replaceChildren(...items.map((it) =>
+    it === "-" ? el("div", { class: "ctx-sep" }) :
+    el("button", { class: "ctx-item" + (it.danger ? " danger" : ""), onclick: () => {
+      hideCtxMenu(); it.run();
+    } }, [svgIcon(it.icon, 13), el("span", { text: it.label })])));
+  menu.classList.remove("hidden");
+  const r = menu.getBoundingClientRect();
+  menu.style.left = Math.min(x, innerWidth - r.width - 8) + "px";
+  menu.style.top = Math.min(y, innerHeight - r.height - 8) + "px";
+}
+
+function hideCtxMenu() {
+  $("#ctx-menu").classList.add("hidden");
+}
+
 /* ── Toasts ────────────────────────────────────────────────────────── */
+
+const TOAST_ICONS = { ok: ICON.check, err: ICON.x, warn: ICON.bolt, "": ICON.sparkle };
 
 function toast(message, kind = "", actionLabel = null, action = null) {
   const wrap = $("#toasts");
+  const orb = el("span", { class: "toast-orb " + (kind || "info") }, [svgIcon(TOAST_ICONS[kind] || ICON.sparkle, 12)]);
   const node = el("div", { class: "toast " + kind }, [
+    orb,
     el("span", { text: message }),
     actionLabel ? el("button", { text: actionLabel, onclick: () => { action(); dismiss(); } }) : null,
   ]);
@@ -1134,6 +1278,147 @@ async function openSettings() {
   $("#settings-modal").classList.remove("hidden");
 }
 
+/* ── Keyboard shortcuts overlay ────────────────────────────────────── */
+
+const SHORTCUTS = [
+  ["Ctrl K", "Command palette — search everything"],
+  ["Ctrl ↵", "Run the current tool"],
+  ["Ctrl 1–4", "Jump straight to a tool"],
+  ["Ctrl ,", "Settings"],
+  ["Ctrl /", "This overlay"],
+  ["Esc", "Close any dialog"],
+];
+
+function openShortcuts() {
+  const body = $("#shortcuts-body");
+  body.replaceChildren(
+    el("div", { class: "sc-grid" },
+      SHORTCUTS.map(([k, d]) => el("div", { class: "sc-row" }, [
+        el("span", { class: "sc-keys" }, k.split(" ").map((x) => el("kbd", { text: x }))),
+        el("span", { class: "sc-desc", text: d }),
+      ]))),
+  );
+  $("#shortcuts-overlay").classList.remove("hidden");
+}
+
+/* ── Onboarding (first run) ────────────────────────────────────────── */
+
+const ONBOARD_SLIDES = [
+  {
+    art: "⚡",
+    title: "Your GPU. Your files. Your tools.",
+    text: "GimmeTools runs everything locally — background removal, upscaling, video processing. No uploads, no watermarks, no subscription. Just your hardware doing the work.",
+  },
+  {
+    art: "🎬",
+    title: "Drop. Queue. Done.",
+    text: "Drag files into any tool and they line up in the queue. Reorder, pause, or cancel anytime — keep creating while renders run in the background.",
+  },
+  {
+    art: "⌨️",
+    title: "Power user from minute one.",
+    text: "Hit Ctrl K to search every tool, preset, and action. Save your go-to settings as presets. Star favorites. The fast way is the default way.",
+  },
+];
+
+let onboardStep = 0;
+
+function maybeOnboard() {
+  try {
+    if (localStorage.getItem("gt-onboarded")) return;
+  } catch { return; }
+  onboardStep = 0;
+  renderOnboardSlide();
+  $("#onboarding").classList.remove("hidden");
+}
+
+function renderOnboardSlide() {
+  const slide = ONBOARD_SLIDES[onboardStep];
+  const art = $("#onboard-art");
+  art.textContent = slide.art;
+  art.classList.remove("onboard-art-in");
+  void art.offsetWidth;
+  art.classList.add("onboard-art-in");
+  $("#onboard-title").textContent = slide.title;
+  $("#onboard-text").textContent = slide.text;
+  $("#onboard-next").textContent =
+    onboardStep === ONBOARD_SLIDES.length - 1 ? "Let's go" : "Next";
+  $("#onboard-dots").replaceChildren(
+    ...ONBOARD_SLIDES.map((_, i) =>
+      el("span", { class: "onboard-dot" + (i === onboardStep ? " on" : "") })));
+}
+
+function finishOnboarding() {
+  try { localStorage.setItem("gt-onboarded", "1"); } catch {}
+  $("#onboarding").classList.add("hidden");
+  toast("Pro tip: Ctrl K opens everything", "ok");
+}
+
+/* ── Creator tips & smart recommendations ──────────────────────────── */
+
+const TIPS = [
+  "Batch a whole folder: drop it on any tool and every file inside gets processed.",
+  "Save a preset for your thumbnail workflow — one click in the palette applies it.",
+  "birefnet-portrait keeps hair edges cleaner when cutting out people.",
+  "Upscaling anime or flat art? The -anime model keeps lines crisp.",
+  "Pause the queue before a stream — your GPU stays free, jobs resume after.",
+  "Right-click any job in the queue for quick actions.",
+  "2x/3x upscales need the animevideov3 model — the others are locked to 4x.",
+  "Set a fixed output folder in Settings to collect renders in one place.",
+];
+
+function currentTipIndex() {
+  try { return parseInt(localStorage.getItem("gt-tip") || "0", 10) % TIPS.length; }
+  catch { return 0; }
+}
+
+function nextTip() {
+  const next = (currentTipIndex() + 1) % TIPS.length;
+  try { localStorage.setItem("gt-tip", String(next)); } catch {}
+  renderDashboard();
+}
+
+function recommendations() {
+  const recs = [];
+  const hist = S.queueState.history;
+  const doneCount = hist.filter((j) => j.status === "done").length;
+  const lastFailed = hist.find((j) => j.status === "failed");
+
+  if (lastFailed && (Date.now() / 1000 - (lastFailed.ended || 0)) < 86400) {
+    recs.push({
+      icon: ICON.bolt, tone: "warn",
+      title: "A render failed recently",
+      text: "“" + lastFailed.label + "” — peek at the log to see what happened.",
+      cta: "View log", run: () => showLog(lastFailed.id),
+    });
+  }
+  if (!hist.length) {
+    recs.push({
+      icon: ICON.sparkle, tone: "brand",
+      title: "Try your first render",
+      text: "Drop any screenshot into Remove Background — takes seconds.",
+      cta: "Open tool", run: () => openTool("remove-bg"),
+    });
+  }
+  if (!S.presets.length && doneCount >= 2) {
+    recs.push({
+      icon: ICON.star, tone: "brand",
+      title: "Save your settings as a preset",
+      text: "You've finished " + doneCount + " renders — lock in your go-to options.",
+      cta: "How", run: () => toast("Open a tool and hit “Save preset…” next to the preset picker", "ok"),
+    });
+  }
+  if (!S.favorites.length && doneCount >= 1) {
+    recs.push({
+      icon: ICON.star, tone: "brand",
+      title: "Star your go-to tool",
+      text: "Favorites pin to the top of the sidebar and the palette.",
+      cta: null, run: null,
+    });
+  }
+  return recs.slice(0, 2);
+}
+
 /* ── Updates ───────────────────────────────────────────────────────── */
 
 window.onUpdateAvailable = (info) => {
@@ -1181,6 +1466,21 @@ function wireEvents() {
   document.querySelectorAll("[data-close]").forEach((b) =>
     b.addEventListener("click", () => b.closest(".overlay").classList.add("hidden")));
 
+  /* onboarding */
+  $("#onboard-skip").addEventListener("click", finishOnboarding);
+  $("#onboard-next").addEventListener("click", () => {
+    if (onboardStep >= ONBOARD_SLIDES.length - 1) { finishOnboarding(); return; }
+    onboardStep++;
+    renderOnboardSlide();
+  });
+
+  /* context menu dismissal */
+  document.addEventListener("mousedown", (e) => {
+    if (!$("#ctx-menu").contains(e.target)) hideCtxMenu();
+  });
+  window.addEventListener("blur", hideCtxMenu);
+  window.addEventListener("resize", hideCtxMenu);
+
   $("#palette-input").addEventListener("input", (e) => {
     palette.selected = 0;
     palette.render(e.target.value);
@@ -1214,6 +1514,7 @@ function wireEvents() {
     if (palette.open) return;
     if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); runCurrent(); }
     if (e.ctrlKey && e.key === ",") { e.preventDefault(); openSettings(); }
+    if (e.ctrlKey && e.key === "/") { e.preventDefault(); openShortcuts(); }
     if (e.ctrlKey && /^[1-9]$/.test(e.key)) {
       const i = parseInt(e.key, 10) - 1;
       if (S.tools[i]) { e.preventDefault(); openTool(S.tools[i].id); }

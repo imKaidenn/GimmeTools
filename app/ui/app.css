@@ -1073,6 +1073,204 @@ select option { background: #14121f; }
 @keyframes toast-in { from { transform: translateX(24px); opacity: 0; } }
 .toast.leaving { transition: opacity 200ms, transform 200ms; opacity: 0; transform: translateX(24px); }
 
+/* ── Recommendations & creator tips ──────────────────────────────── */
+
+.rec-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.rec-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+  transition: border-color var(--t-fast), transform var(--t-fast);
+}
+.rec-card:hover { border-color: var(--stroke-2); transform: translateY(-1px); }
+.rec-card.tip { border-color: rgba(124, 58, 237, .28); }
+.rec-card.warn { border-color: rgba(251, 191, 36, .3); }
+.rec-body { flex: 1; min-width: 0; }
+.rec-title { font-weight: 700; font-size: 12.5px; }
+.rec-text { font-size: 11.5px; color: var(--text-2); line-height: 1.45; }
+
+.icon-orb {
+  width: 32px; height: 32px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #fff;
+  background: var(--glass-3);
+}
+.icon-orb.brand { background: var(--grad-brand); box-shadow: 0 4px 14px rgba(124, 58, 237, .4); }
+.icon-orb.warn { background: linear-gradient(135deg, #b45309, #fbbf24); box-shadow: 0 4px 14px rgba(251, 191, 36, .3); }
+
+/* ── Palette: groups & footer ────────────────────────────────────── */
+
+.palette-group {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 10px 12px 4px;
+}
+
+.palette-foot {
+  display: flex;
+  gap: 16px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--stroke);
+  font-size: 11px;
+  color: var(--text-3);
+}
+.palette-foot span { display: flex; align-items: center; gap: 5px; }
+
+/* ── Keyboard shortcuts overlay ──────────────────────────────────── */
+
+.sc-grid { display: flex; flex-direction: column; gap: 4px; }
+.sc-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  transition: background var(--t-fast);
+}
+.sc-row:hover { background: var(--glass-2); }
+.sc-keys { display: flex; gap: 4px; min-width: 92px; }
+.sc-keys kbd { font-size: 11px; padding: 3px 7px; }
+.sc-desc { color: var(--text-2); font-size: 12.5px; }
+
+/* ── Onboarding ──────────────────────────────────────────────────── */
+
+.onboard { width: 480px; overflow: hidden; }
+
+.onboard-art {
+  height: 168px;
+  display: grid;
+  place-items: center;
+  font-size: 64px;
+  background:
+    radial-gradient(320px 160px at 50% 110%, rgba(124, 58, 237, .35), transparent 70%),
+    radial-gradient(280px 140px at 20% -20%, rgba(34, 211, 238, .18), transparent 70%),
+    var(--glass);
+  border-bottom: 1px solid var(--stroke);
+}
+.onboard-art-in { animation: art-in 420ms var(--ease); }
+@keyframes art-in {
+  from { transform: scale(.7) translateY(12px); opacity: 0; }
+}
+
+.onboard-body { padding: 22px 26px 22px; }
+.onboard-body h2 {
+  font-family: var(--font-disp);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -.4px;
+  margin-bottom: 8px;
+}
+.onboard-body p { color: var(--text-2); font-size: 13px; line-height: 1.65; }
+
+.onboard-dots { display: flex; gap: 6px; margin-bottom: 14px; }
+.onboard-dot {
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: var(--glass-3);
+  transition: width var(--t-med), background var(--t-med);
+}
+.onboard-dot.on { width: 22px; background: var(--grad-brand); }
+
+.onboard-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+/* ── Context menu ────────────────────────────────────────────────── */
+
+.ctx-menu {
+  position: fixed;
+  z-index: 300;
+  min-width: 190px;
+  padding: 5px;
+  background: rgba(18, 16, 30, .96);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--stroke-2);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  animation: ctx-in 120ms var(--ease);
+}
+@keyframes ctx-in { from { transform: scale(.96); opacity: 0; } }
+
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 10px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: none;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.ctx-item:hover { background: var(--glass-3); color: var(--text); }
+.ctx-item.danger:hover { background: rgba(251, 113, 133, .12); color: var(--err); }
+.ctx-sep { height: 1px; background: var(--stroke); margin: 5px 8px; }
+
+/* ── Polish: success button, toast orbs, hover reveals, focus ────── */
+
+.btn-success {
+  background: linear-gradient(135deg, #059669, #34d399) !important;
+  box-shadow: 0 6px 20px rgba(52, 211, 153, .4) !important;
+  animation: success-pop 300ms var(--ease);
+}
+@keyframes success-pop { 40% { transform: scale(1.05); } }
+
+.toast-orb {
+  width: 24px; height: 24px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #fff;
+  background: var(--grad-blue);
+}
+.toast-orb.ok { background: linear-gradient(135deg, #059669, #34d399); }
+.toast-orb.err { background: linear-gradient(135deg, #be123c, #fb7185); }
+.toast-orb.warn { background: linear-gradient(135deg, #b45309, #fbbf24); }
+
+/* queue rows: actions appear on hover — less noise at rest */
+.job-actions { opacity: 0; transition: opacity var(--t-fast); }
+.job-row:hover .job-actions { opacity: 1; }
+
+/* scroll fade at panel edges */
+.nav, .panel, .palette-results {
+  mask-image: linear-gradient(180deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+}
+
+/* keyboard focus ring */
+:focus-visible {
+  outline: 2px solid rgba(124, 58, 237, .65);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::selection { background: rgba(124, 58, 237, .45); }
+
 /* ── Reduced motion ──────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
