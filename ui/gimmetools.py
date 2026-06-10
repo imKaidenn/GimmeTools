@@ -1,5 +1,5 @@
 """
-GimmeTools — desktop UI for MediaTools.
+GimmeTools — desktop UI for GimmeTools.
 
 A THIN layer over the backend. It does no image/video work itself: every
 action shells out to the same scripts/*.py a terminal user runs, in the same
@@ -24,16 +24,17 @@ import threading
 from pathlib import Path
 
 # ── Resolve toolkit root and reuse the backend's config ────────────────────────
-# ui/gimmetools.py -> ui -> MediaTools
+# ui/gimmetools.py -> ui -> GimmeTools
 TOOLKIT_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = TOOLKIT_ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 try:
-    from lib.config import Config
+    from lib.config import Config, VERSION as _LIB_VERSION
     _cfg = Config.load()
 except Exception:
     _cfg = None
+    _LIB_VERSION = "1.1"
 
 try:
     import customtkinter as ctk
@@ -53,7 +54,7 @@ except ImportError:
 #  CONFIG / PALETTE  (matches GimmeDat: near-black + purple/violet + cyan neon)
 # ─────────────────────────────────────────────────────────────────────────────
 
-VERSION = "1.0"
+VERSION = _LIB_VERSION
 APP_NAME = "GimmeTools"
 
 BG       = "#08070d"
@@ -111,7 +112,9 @@ class Runner:
     def run(self, script: str, args: list[str]) -> None:
         if self.busy:
             return
-        cmd = [str(venv_python()), str(SCRIPTS_DIR / script)] + args
+        # -u: unbuffered child stdout — without it Python block-buffers into
+        # the pipe and the "live" log shows nothing until the process exits.
+        cmd = [str(venv_python()), "-u", str(SCRIPTS_DIR / script)] + args
         self.q.put(("cmd", " ".join(f'"{c}"' if " " in c else c for c in cmd)))
         self.thread = threading.Thread(target=self._worker, args=(cmd,), daemon=True)
         self.thread.start()
@@ -119,7 +122,16 @@ class Runner:
     def cancel(self) -> None:
         if self.busy and self.proc:
             try:
-                self.proc.terminate()
+                if os.name == "nt":
+                    # Kill the whole tree — terminate() would only stop the
+                    # Python wrapper and leave HandBrake/Topaz encoding forever.
+                    subprocess.run(
+                        ["taskkill", "/PID", str(self.proc.pid), "/T", "/F"],
+                        capture_output=True,
+                        creationflags=subprocess.CREATE_NO_WINDOW,
+                    )
+                else:
+                    self.proc.kill()
                 self.q.put(("warn", "── Cancelled by user ──"))
             except Exception:
                 pass
@@ -134,6 +146,7 @@ class Runner:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
+                errors="replace",
                 bufsize=1,
                 creationflags=flags,
                 cwd=str(TOOLKIT_ROOT),
@@ -147,7 +160,7 @@ class Runner:
             else:
                 self.q.put(("error", f"✗ Exited with code {code}."))
         except FileNotFoundError:
-            self.q.put(("error", "Could not find the venv Python. Run install\\setup.ps1 first."))
+            self.q.put(("error", "Could not find the venv Python. Run GimmeTools.bat to set up first."))
         except Exception as e:
             self.q.put(("error", f"Error: {e}"))
         finally:
@@ -307,7 +320,8 @@ class GimmeTools(ctk.CTk):
                 values=["realesrgan-x4plus", "realesrgan-x4plus-anime",
                         "realesrnet-x4plus", "realesr-animevideov3"],
                 font=(F_UI, 12), fg_color=CARD, button_color=PURPLE,
-                button_hover_color=VIOLET, text_color=TEXT, width=200)
+                button_hover_color=VIOLET, text_color=TEXT, width=200,
+                command=self._on_upscale_model)
             self.up_model.set(default)
             self.up_model.grid(row=0, column=1, pady=12)
 
@@ -321,6 +335,7 @@ class GimmeTools(ctk.CTk):
             self.up_scale.set(dscale)
             self.up_scale.grid(row=0, column=3, pady=12)
             self._batch_switch(col=4)
+            self._on_upscale_model(default)
 
         else:  # Process Video
             self.skip_topaz = tk.BooleanVar(value=False)
@@ -374,7 +389,7 @@ class GimmeTools(ctk.CTk):
         self._append(f"Toolkit: {TOOLKIT_ROOT}", "cmd")
         py = venv_python()
         if "venv" not in str(py):
-            self._append("⚠ venv not found — run install\\setup.ps1 first.", "warn")
+            self._append("⚠ venv not found — run GimmeTools.bat to set up first.", "warn")
         else:
             self._append("Pick a file, choose options, hit Run.", "line")
 
@@ -384,6 +399,15 @@ class GimmeTools(ctk.CTk):
         self.mode = value
         self.batch.set(False)
         self._build_options()
+
+    def _on_upscale_model(self, model: str):
+        # Only realesr-animevideov3 is multi-scale; the others are fixed 4x
+        # and the binary hard-fails on any other -s value.
+        if model == "realesr-animevideov3":
+            self.up_scale.configure(state="normal")
+        else:
+            self.up_scale.set("4")
+            self.up_scale.configure(state="disabled")
 
     def _browse_file(self):
         types = VIDEO_TYPES if self.mode == "Process Video" else IMAGE_TYPES
@@ -489,8 +513,32 @@ class GimmeTools(ctk.CTk):
 
 
 def main():
-    app = GimmeTools()
-    app.mainloop()
+    try:
+        app = GimmeTools()
+        app.mainloop()
+    except Exception:
+        # Launched via pythonw there is no console — without this, any
+        # startup crash is completely invisible to the user.
+        import traceback
+        crash = traceback.format_exc()
+        try:
+            log_path = TOOLKIT_ROOT / "logs" / "ui-crash.log"
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.write_text(crash, encoding="utf-8")
+        except Exception:
+            log_path = None
+        try:
+            from tkinter import messagebox
+            root = tk.Tk()
+            root.withdraw()
+            where = f"\n\nDetails: {log_path}" if log_path else ""
+            messagebox.showerror(
+                "GimmeTools failed to start",
+                f"{crash.strip().splitlines()[-1]}{where}",
+            )
+        except Exception:
+            pass
+        raise
 
 
 if __name__ == "__main__":
