@@ -1,7 +1,7 @@
 @echo off
 REM ============================================================
 REM   GimmeTools launcher  (PowerShell-free)
-REM   Double-click to open the MediaTools desktop UI.
+REM   Double-click to open the GimmeTools desktop UI.
 REM ============================================================
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
@@ -50,7 +50,7 @@ if not defined BOOT (
 )
 
 echo   Using: !BOOT!
-echo   Setting up MediaTools (this can take a few minutes)...
+echo   Setting up GimmeTools (this can take a few minutes)...
 echo.
 "!BOOT!" "install\setup.py"
 

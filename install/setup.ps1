@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    MediaTools setup (PowerShell wrapper).
+    GimmeTools setup (PowerShell wrapper).
 
 .DESCRIPTION
     The real setup logic lives in install\setup.py (pure Python, no PowerShell

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Register MediaTools context menu entries in Windows Explorer.
+    Register GimmeTools context menu entries in Windows Explorer.
 
 .DESCRIPTION
     Adds right-click options for image and video files:
@@ -29,7 +29,7 @@ $VenvPython  = Join-Path $ToolkitRoot "tools\venv\Scripts\python.exe"
 
 # Verify venv exists
 if (-not (Test-Path $VenvPython)) {
-    Write-Host "Error: venv not found. Run install\setup.ps1 first." -ForegroundColor Red
+    Write-Host "Error: venv not found. Run GimmeTools.bat (or: py install\setup.py) first." -ForegroundColor Red
     exit 1
 }
 
@@ -60,13 +60,13 @@ function Register-Entry {
     $command = "`"$VenvPython`" `"$Script`" `"%1`""
 
     # SystemFileAssociations path works for all files of that extension
-    $keyPath = "$Hive\Software\Classes\SystemFileAssociations\$Extension\shell\MediaTools.$($MenuName -replace ' ','')"
+    $keyPath = "$Hive\Software\Classes\SystemFileAssociations\$Extension\shell\GimmeTools.$($MenuName -replace ' ','')"
     $cmdPath = "$keyPath\command"
 
     if (-not (Test-Path $keyPath)) {
         New-Item -Path $keyPath -Force | Out-Null
     }
-    Set-ItemProperty -Path $keyPath -Name "(Default)" -Value "MediaTools: $MenuName"
+    Set-ItemProperty -Path $keyPath -Name "(Default)" -Value "GimmeTools: $MenuName"
 
     if ($Icon) {
         Set-ItemProperty -Path $keyPath -Name "Icon" -Value $Icon
