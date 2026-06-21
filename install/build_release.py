@@ -163,7 +163,7 @@ Filename: "{{app}}\{{#MyAppExeName}}"; Description: "{{cm:LaunchProgram,{{#MyApp
 def make_installer(ver: str) -> None:
     step("Installer script (Inno Setup)...")
     iss = DIST / "GimmeTools-Setup.iss"
-    iss.write_text(ISS_TEMPLATE.replace("{VERSION}", ver), encoding="utf-8")
+    iss.write_text(ISS_TEMPLATE.format(VERSION=ver), encoding="utf-8")
     print(f"    OK: {iss.name}")
     if shutil.which("iscc"):
         step("Compiling installer with iscc...")

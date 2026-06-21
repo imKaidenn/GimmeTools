@@ -1,4 +1,4 @@
-# GimmeTools v1.1 — Release Notes
+# GimmeTools v2.0 — Release Notes
 
 Full background in [`AUDIT_REPORT.md`](AUDIT_REPORT.md). Finding IDs below (C1, H1, …) refer to it.
 
